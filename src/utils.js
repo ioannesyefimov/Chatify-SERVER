@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken'
 
 export function validateIsEmpty(params){
+  
   return new Promise((resolve,reject)=>{
     let missing={};
     for ( let param in params){
@@ -25,6 +26,7 @@ export function validateIsEmpty(params){
 }
 
 export function checkError(error,res){
+  console.log(`SERVER ERROR: `, error)
     let errors = {};
     if(error.name === 'ValidationError'){
       Object.keys(error.errors).forEach((key)=>{

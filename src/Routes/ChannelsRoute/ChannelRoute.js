@@ -2,7 +2,7 @@ import express from 'express';
 import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
-import {User,conn,Login} from '../../MongoDb/index.js'
+import {User,conn,Login,Channel} from '../../MongoDb/index.js'
 import { verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { Errors, checkError } from "../../utils.js"
@@ -11,7 +11,7 @@ dotenv.config()
 const router = express.Router()
 
 
-export const handleGithubSingin = async(accessToken ,res)=>{
+ const handleGithubSingin = async(accessToken ,res)=>{
     try {
         
        return  await jwt.verify(accessToken, process.env.JWT_TOKEN_SECRET, async (err,result) => {
@@ -63,56 +63,116 @@ export const handleGithubSingin = async(accessToken ,res)=>{
     }
 }
 
-router.route('/').get(async(req,res) =>{
-    try {
-        const {user,accessToken,name,} = req.body  // Bearer ACCESSTOKEN
-        
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        const session = conn.startSession()
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:user?.email});
-        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND})
-
-        return await (await session).withTransaction(async()=>{
-            let Channel = await Channel
-
-            LoggedUser.populate('channels').exec((err,channles)=>{
-                console.log('POPULATED User ' + channles)
-            })
-        })
-
-    } catch (error) {
-        return checkError(error,res)
-    }
-})
 
 router.route('/create').post(async(req,res) =>{
     try {
-        const {user,accessToken,name,} = req.body  // Bearer ACCESSTOKEN
-        
+        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        const session = await conn.startSession()
         // const  isValidToken = await verifyAccessToken(accessToken) 
-        const session = conn.startSession()
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:user?.email});
-        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND})
+        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
 
-        return await (await session).withTransaction(async()=>{
-            let Channel = await Channel
+        return await session.withTransaction(async()=>{
+            const newChannel = new Channel({
+                channelName
+            },{session});
 
-            LoggedUser.populate('channels').exec((err,channles)=>{
-                console.log('POPULATED User ' + channles)
+            LoggedUser.channels.push(newChannel)
+            LoggedUser.save()
+
+            newChannel.members.push(LoggedUser)
+            newChannel.save()
+
+            // let newChannel = await Channel.create([{channelName,}],{session});
+       
+
+
+            LoggedUser.populate('channels')
+            .then(channels=>{
+                console.log('POPULATED User ' + channels)
             })
+            .catch(err=>{return console.log(err)})
+
+            newChannel.populate('members')
+            .then(members=>{
+                console.log(`memmbers POPULATED: `, members)
+            })
+            .catch(err=>{return console.log(err)})
         })
 
     } catch (error) {
-        return checkError(error,res)
-        if(error.name === 'ValidationError'){
-            return checkError(error,res)
+         checkError(error,res)
+    }
+})
+
+router.route('/join').post(async(req,res)=>{
+    try {
+        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+        let LoggedUser = await User.findOne({email:user?.email});
+        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
+
+            const newChannel = await Channel.findOne({channelName});
+
+            LoggedUser.channels.push(newChannel)
+            LoggedUser.save()
+
+            newChannel.members.push(LoggedUser)
+            newChannel.save()
+
+            // let newChannel = await Channel.create([{channelName,}],{session});
+       
+
+
+            LoggedUser.populate('channels')
+            .then(channels=>{
+                console.log('POPULATED User ' + channels)
+            })
+            .catch(err=>{return console.log(err)})
+
+            newChannel.populate('members')
+            .then(members=>{
+                console.log(`memmbers POPULATED: `, members)
+            })
+            .catch(err=>{return console.log(err)})
+
+    } catch (error) {
+         checkError(error,res)
+    }
+})
+
+router.route('/').get(async(req,res) =>{
+    try {
+        const {userEmail} = req.query  // Bearer ACCESSTOKEN
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        console.log(userEmail)
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+        let LoggedUser = await User.findOne({email:userEmail});
+        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND})
+
+        let channels = await Channel.find({members:LoggedUser._id});
+        if(channels.length > 1){
+            channels.forEach(channel=>{
+                return channel.populate('users').then(user=>console.log(`channel user:`, user))
+            })
+            
         }
-        console.log(error)
-        res.status(500).send({success:false, message:error})       
+        console.log(`channels:`, channels)
+            let populatedUser = await LoggedUser.populate('channels');
+        let populatedChannels = await channels[0].populate('members');
+
+            // if(!populatedUser) throw new Error(populated?.err)
+        console.log(`populated channels`, populatedChannels)
+        console.log('POPULATED User ' + populatedUser)
+
+    } catch (error) {
+         checkError(error,res)
     }
 }
 

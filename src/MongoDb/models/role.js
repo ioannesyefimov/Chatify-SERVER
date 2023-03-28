@@ -1,33 +1,26 @@
 import mongoose from "mongoose";
 
 
-const ChannelSchema = new mongoose.Schema({
-    channelName: {
+const RoleSchema = new mongoose.Schema({
+    name: {
         type:String,
         trim:true,
         required:true,
         unique: true,
     },
-    messages:[{
-        default: [],
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Message'
+    description:[{
+        type:String,
     }],
-    members: [{
+    permissions: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        unique:true,
-        roles: [{
-            type: mongoose.Schema.ObjectId,
-            ref: 'Role',
-            default: 'member'
-        }],
+        ref: 'Permission',
+        default:'write&read'
     }],
 
 }, {versionKey: false })
 
 
-ChannelSchema.set('toJSON', {
+RoleSchema.set('toJSON', {
     virtuals: true,
     transform: (doc,result) => {
         return {
@@ -40,7 +33,7 @@ ChannelSchema.set('toJSON', {
         // delete ret.__v;
     }
 })
-const Channel = mongoose.model('Channel', ChannelSchema, 'channels')
+const Role = mongoose.model('Role', RoleSchema, 'Roles')
 
 
-export default Channel 
+export default Role 

@@ -16,15 +16,12 @@ const MessageSchema = new mongoose.Schema({
     },
     channelAt: [{
         type: mongoose.Schema.ObjectId,
-        ref: 'Channel'
+        ref: 'Channel',
+        required:true,
     }]    
 
 }, {versionKey: false })
 
-MessageSchema.pre('updateOne', function(next){
-    this.setOptions({runValidators:true})
-    next()
-})
 
 MessageSchema.set('toJSON', {
     virtuals: true,
