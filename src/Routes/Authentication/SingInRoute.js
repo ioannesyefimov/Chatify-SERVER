@@ -21,47 +21,40 @@ const router = express.Router()
 router.route('/').post(async(req,res)=>{
     try {
         const {email, password, accessToken, loggedThrough} = req.body
-
-        if(accessToken && loggedThrough == 'Github'){
-           return handleGithubSingin(accessToken, res)
-        }
-        if(accessToken  ){
-            return handleUserData(accessToken,loggedThrough, res)
-        } 
+        // if(accessToken && loggedThrough == 'Github'){
+        //    return handleGithubSingin(accessToken, res)
         // }
+        // if(accessToken  ){
+        //     return handleUserData(accessToken,loggedThrough, res)
+        // } 
+        // // }
         if(!email || !password) return res.status(400).send({success:false, message:`INCORRECT_FORM_SUBMISSION`})
+        const USER_LOGIN = await Login.findOne({email: email})
 
-        const USER_LOGIN = await Login.find({email: email})
-
-        if(USER_LOGIN.length < 1){
-            return res.status(404).send({success:false,message:Errors.NOT_FOUND})
-        }
-    console.log(`LoggedThrough: ${loggedThrough}`);
-        if( USER_LOGIN[0]?.loggedThrough !== loggedThrough && !USER_LOGIN[0]?.password ) {
+        if(!USER_LOGIN)return res.status(404).send({success:false,message:Errors.NOT_FOUND})
+        console.log(`LoggedThrough: ${loggedThrough}`);
+        if( USER_LOGIN?.loggedThrough !== loggedThrough && !USER_LOGIN?.password ) {
             console.log('1')
-            return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY , loggedThrough: USER_LOGIN[0]?.loggedThrough})
-            
+            return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY , loggedThrough: USER_LOGIN?.loggedThrough})
         }
         
-        if(USER_LOGIN.length > 0 && USER_LOGIN[0]?.password) {
+        if(USER_LOGIN && USER_LOGIN?.password) {
             console.log(USER_LOGIN)
-            
-            const isValid = bcrypt.compareSync(password, USER_LOGIN[0].password)
+            const isValid = bcrypt.compareSync(password, USER_LOGIN.password)
             if(!isValid){
                 return res.status(400).send({success:false, message:Errors.WRONG_PASSWORD});
             } 
-            let USER = await User.find({email: email})
+            let USER = await User.findOne({email: email});
             let user = {
-                fullName: USER[0].fullName,
-                 email: USER[0].email,
-                  picture: USER[0]?.picture,
-                    bio: USER[0]?.bio,
-                  phone: USER[0]?.phone,
-                  loggedThrough: USER[0]?.loggedThrough
+                userName: USER.userName,
+                 email: USER.email,
+                  picture: USER?.picture,
+                    bio: USER?.bio,
+                  phone: USER?.phone,
+                  loggedThrough: USER?.loggedThrough
                 }
-            const GeneratedToken = generateAccessToken(user);
+            const GeneratedToken = generateAccessToken({email:user?.email});
             return res.status(200).send({success:true, data: { accessToken: GeneratedToken, loggedThrough: `Internal`}})
-     
         }
     } catch (error) {
         console.log(`error: `, error)

@@ -11,10 +11,13 @@ export function validateIsEmpty(params){
       }
     }
     console.log(`missing: `, missing)
-    if(Object.keys(missing).length > 1){
+    if(Object.keys(missing).length > 0){
+      console.log(`rejecting`)
       return reject({success:false,missing})
     }
     if(Object.keys(missing).length === 0){
+      console.log(`resolving`)
+
       return resolve({success:true})
     }
 
@@ -137,13 +140,17 @@ export const Errors = {
   
 }
 
-export const verifyAccessToken =  (token )=>{
-  return  jwt.verify(token, process.env.JWT_TOKEN_SECRET, async(err,result)=>{
+export const verifyAccessToken =(token )=>{
+  return new Promise((resolve, reject) => {
+    console.log(`secret: `, process.env.JWT_TOKEN_SECRET)
+    jwt.verify(token, process.env.JWT_TOKEN_SECRET, async(err,result)=>{
     if(err) {
         console.log(err)
-        return {err}
+        return reject({success:false,err})
     }
-   return result
+   return resolve({success:true,result})
+    
+  })
 })
   
 }

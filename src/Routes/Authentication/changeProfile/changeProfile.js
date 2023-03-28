@@ -19,21 +19,21 @@ const router = express.Router()
 
 router.route('/delete').delete(async(req,res)=>{
 
-    const session = await conn.startSession()
     try {
         console.log(`DELETE USER IS WORKING`)
-
+        
         const {userEmail, updatedParams,accessToken,deletedThrough} = req.body
         console.log(`body:`, req.body);
-        if(!userEmail || !accessToken ) return res.status(400).send({success:false, message:Errors.MISSING_ARGUMENTS})
-
+        if(!userEmail || !accessToken ) throw new Error({success:false, message:Errors.MISSING_ARGUMENTS})
+        
         const isValidToken = await verifyAccessToken(accessToken);
-        if(isValidToken?.err) return res.status(400).send({success:false,message:isValidToken?.err?.message || isValidToken?.err})
-
+        if(!isValidToken?.success) return res.status(400).send({success:false,message:isValidToken?.err?.message || isValidToken?.err})
+        
         const isLogged = await Login.findOne({email:userEmail});
-        if(isLogged === null) {
+        if(!isLogged) {
             return res.status(404).send({success:false, message:Errors.NOT_FOUND})
         };
+        const session = await conn.startSession()
       
         return await session.withTransaction(async()=>{
             console.log(`isLogged: `, isLogged)
@@ -62,7 +62,10 @@ router.route('/delete').delete(async(req,res)=>{
             let isDeletedLOGIN = await Login.deleteOne({email: userEmail}, {session});
             let isDeletedUSER = await Login.deleteOne({email: userEmail}, {session});
 
-            if(!isDeletedLOGIN || !isDeletedUSER) return res.status(500).send({success:false,message:`USER_ISN'T_DELETED`})
+            if(!isDeletedLOGIN || !isDeletedUSER) {
+                session.abortTransaction()
+                return res.status(500).send({success:false,message:`USER_ISN'T_DELETED`})
+            }
             console.log(`USER:`, isDeletedUSER);
             console.log(`LOGIN:`, isDeletedLOGIN);
             console.log(isLogged);
@@ -74,8 +77,8 @@ router.route('/delete').delete(async(req,res)=>{
 
         
     } catch (error) {
-        session.abortTransaction()
-            return checkError(error,res)
+        console.log(error)
+         checkError(error,res)
     }
 
 })
@@ -96,16 +99,16 @@ router.route('/').post(async(req,res)=>{
         }
 
         console.log(req.body)
-        const isLogged = await User.find({email:userEmail});
+        const isLogged = await User.findOne({email:userEmail});
     
-        if(isLogged.length < 1) {
+        if(!isLogged) {
             return res.status(404).send({success:false, message:Errors.NOT_FOUND})
         }
     
         // validate if user has been signed up through social 
         // if(isLogged[0].loggedThrough !=='Internal' && !oldPassword){
         const isValidToken = await verifyAccessToken(accessToken);
-        if(isValidToken?.err) return res.status(400).send({success:false,message:isValidToken?.err?.message})
+        if(isValidToken?.err) throw new Error({success:false,message:isValidToken?.err?.message})
         console.log(`data :`, updatedParams)
 
         return await session.withTransaction(async()=>{

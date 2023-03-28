@@ -3,64 +3,39 @@ import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
 import {User,conn,Login} from '../../MongoDb/index.js'
-
-// import { conn } from '../../MongoDb/connect.js';
-// import User from '../../MongoDb/models/user.js'
-// import Login from '../../MongoDb/models/login.js'
 import { generateAccessToken,generateRefreshToken } from './tokenRoute.js';
-import jwt from 'jsonwebtoken'
-import { Errors, checkError } from "../../utils.js"
+import { Errors, checkError, verifyAccessToken } from "../../utils.js"
 
-dotenv.config()
 const router = express.Router()
 
 
 export const handleGithubSingin = async(accessToken ,res)=>{
     try {
+        const isValidToken = await verifyAccessToken(accessToken);
+        if(isValidToken?.err) {
+            console.log(err)
+            return res.status(404).send({success:false, message:err})
+        }
+        console.log(isValidToken)
+
+        const USER = await User.findOne({email: isValidToken?.email});
+        if(!USER) return res.status(400).send({success:false, message:Errors.NOT_FOUND})
+        if(USER.loggedThrough !== 'Github') return res.status(400).send({success:false, message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
+ 
+        const user = {
+            userName: USER?.userName  ,
+            email: USER.email,
+            picture: USER?.picture || null,
+            loggedThrough: USER?.loggedThrough,
+            bio: USER?.bio,
+            phone: USER?.phone,
+        }
+        const GeneratedRefreshToken = generateRefreshToken(user?.email)
+        const GeneratedAccessToken = generateAccessToken(user?.email)
+
         
-       return  await jwt.verify(accessToken, process.env.JWT_TOKEN_SECRET, async (err,result) => {
-            if(err) {
-                console.log(err)
-                return res.status(404).send({success:false, message:err})
-            }
-            const session = await conn.startSession()
-            console.log(result)
-            const user = {
-                fullName: result?.fullName  ,
-                email: result.email,
-                picture: result?.picture || null,
-                loggedThrough: result?.loggedThrough,
-                bio: result?.bio,
-                phone: result?.phone,
-                loggedThrough: result?.loggedThrough
-               
-            }
-            const GeneratedRefreshToken = generateRefreshToken(user)
-            const GeneratedAccessToken = generateAccessToken(user)
-            
-            const isLoggedAlready = await Login.findOne({email: user?.email})
-            if(!isLoggedAlready){
-                return res.status(400).send({success:false, message:Errors.NOT_FOUND, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-            }
-            if(isLoggedAlready.loggedThrough !== 'Github') return res.status(400).send({success:false, message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
-
-
-           return await session.withTransaction(async()=>{
-
-                const GeneratedAccessToken = generateAccessToken(user)
-                
-
-                
-                if(isLoggedAlready && user.loggedThrough !== 'Github' ){
-                    return res.status(400).send({success:false, message: `LOGGED_DIFFERENTLY`, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-                }
-          
-                res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken, loggedThrough:user.loggedThrough, user: user}});
-               await session.commitTransaction(); 
-                session.endSession()
-            })
+        res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken, loggedThrough:user.loggedThrough, user: user}});
         
-        })
         
     } catch (error) {
         return checkError(error,res)
@@ -104,6 +79,8 @@ router.route('/register').post(async(req,res) =>{
             const dbLOGIN = await Login.create([{
                 email:user.email,
                 loggedThrough: user.loggedThrough,
+                userName: userName,
+
 
             }], {session});
 
@@ -129,12 +106,7 @@ router.route('/register').post(async(req,res) =>{
         })
 
     } catch (error) {
-        return checkError(error,res)
-        if(error.name === 'ValidationError'){
-            return checkError(error,res)
-        }
-        console.log(error)
-        res.status(500).send({success:false, message:error})       
+         checkError(error,res)
     }
     }
 )
@@ -161,12 +133,7 @@ router.route('/getAccessToken').get( async (req,res) =>{
             return res.status(200).send({success:true,data: {accessToken: ghResponse.access_token}})
         
     } catch(error){
-        return checkError(error,res)
-        if(error.name === 'ValidationError'){
-            return checkError(error,res)
-        }
-       console.log(error)
-        return res.status(500).send({success:false,message:error})
+         checkError(error,res)
     }
 
   
@@ -175,7 +142,6 @@ router.route('/getAccessToken').get( async (req,res) =>{
 
 router.route('/getUserToken').get(async(req,res)=>{
     try {
-        const session = await conn.startSession()
         console.log(`token: ${req.get("Authorization")}`);
         const octokit = new Octokit({
          auth: req.get('Authorization')
@@ -188,7 +154,6 @@ router.route('/getUserToken').get(async(req,res)=>{
          })
          const GHuser = await basicUser.data
 
-         await session.withTransaction(async()=>{
             let user = {
                 fullName: `${GHuser?.name} ${ GHuser?.lastName ? GHuser?.lastName : '' }`,
                 picture: GHuser?.avatar_url,
@@ -198,24 +163,15 @@ router.route('/getUserToken').get(async(req,res)=>{
                 phone: GHuser?.phone,
             }
 
-            const isRegistered = await Login.find({email: user.email})
+            const isRegistered = await Login.findOne({email: user.email})
 
-            if(isRegistered.length > 0){
-                const GeneratedAccessToken = generateAccessToken(user)
-                console.log(`success`)
-                res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken}});
-                await session.commitTransaction(); 
-                session.endSession()
-
-            }
-            else {
-                return res.status(404).send({success:false,message:`NOT_FOUND`})
-            }
+            if(!isRegistered) return res.status(404).send({success:false,message:`NOT_FOUND`})
+            const GeneratedAccessToken = generateAccessToken(user)
+            console.log(`success`)
+            res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken}});
             
-        })
-
     } catch (error){
-        return checkError(error,res)
+        checkError(error,res)
         return res.status(500).send({success:false,message:error ||`SOMETHING WENT WRONG`})
     }
 }

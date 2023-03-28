@@ -2,13 +2,8 @@ import express from 'express'
 import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
-import jwt from 'jsonwebtoken'
-// import { conn } from '../../MongoDb/connect.js'
 import {checkError, validatePassword, Errors, validateIsEmpty } from '../../utils.js'
 import {conn,User,Login} from '../../MongoDb/index.js'
-
-// import User from '../../MongoDb/models/user.js'
-// import Login from '../../MongoDb/models/login.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 
 dotenv.config();
@@ -17,29 +12,29 @@ dotenv.config();
 const router = express.Router()
 
 export const  serverValidatePw = ( userName,email,password,res) =>{
-    console.log(`server pw validation started`);
-    if(!userName|| !email|| !password) {
-        return   res.status(400).send(Errors.MISSING_ARGUMENTS)
-    } 
-    if(validatePassword(password, userName) === `valid`){
-        console.log(`valid server checkr`);
-        return {success:true,message:`valid`}
-    }else 
-       
-     if(validatePassword(password,userName) == Errors.INVALID_PASSWORD){
-         console.log(Errors.INVALID_PASSWORD)
-        return   {success:false,message:Errors.INVALID_PASSWORD}
-
-    } 
-    else if(validatePassword(password, userName) == Errors.PASSWORD_CONTAINS_NAME){
-        console.log(Errors.PASSWORD_CONTAINS_NAME)
-        return   {success:false, message:Errors.PASSWORD_CONTAINS_NAME}
-
-    }
-    if(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email) === false) {
-        console.log()
-        return   {success:false,message:Errors.INVALID_EMAIL}
-    }    
+    return new Promise((resolve,reject)=>{
+        console.log(`server pw validation started`);
+        let isValid = validatePassword(password,userName);
+        if(isValid === `valid`){
+            console.log(`valid server checkr`);
+            return resolve({success:true,message:`valid`})
+        }else 
+           
+         if(validatePassword(password,userName) == Errors.INVALID_PASSWORD){
+             console.log(Errors.INVALID_PASSWORD)
+            return   reject({success:false,message:Errors.INVALID_PASSWORD})
+    
+        } 
+        else if(isValid == Errors.PASSWORD_CONTAINS_NAME){
+            console.log(Errors.PASSWORD_CONTAINS_NAME)
+            return   reject({success:false, message:Errors.PASSWORD_CONTAINS_NAME})
+    
+        }
+        if(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email) === false) {
+            console.log()
+            return   reject({success:false,message:Errors.INVALID_EMAIL})
+        }    
+    })
 }
 
 router.route('/').post(async(req,res)=>{
@@ -48,7 +43,7 @@ router.route('/').post(async(req,res)=>{
 
         const {userName, email, password, picture, loggedThrough} = req.body
         let isEmpty = await validateIsEmpty({userName,email,password});
-        if(!isEmpty?.success && isEmpty?.missing){
+        if(!isEmpty?.success){
             return res.status(400).send({success:false,message:{error:Errors.MISSING_ARGUMENTS,arg: isEmpty?.missing}})
         }
         const isLoggedAlready = await Login.findOne({email: email});
@@ -63,25 +58,27 @@ router.route('/').post(async(req,res)=>{
                 loggedThrough: isLoggedAlready?.loggedThrough
             })
         }
-        let isValidPassword = await serverValidatePw(userName, email,password,res);
-        if(!isValidPassword?.success) return res.status(400).send({success:false,message:isValidPassword?.message})
-        const hash = bcrypt.hashSync(password, 10)
-
+        // let isValidPassword = await serverValidatePw(userName, email,password,res);
+        // if(!isValidPassword?.success) throw new Error({success:false,name: 'VALIDATION_ERROR',error:isValidPassword?.message})
+        // const hash = bcrypt.hashSync(password, 10)
+        console.log('working')
        return await session.withTransaction(async()=>{
             let user = {
                 email: email,
                 userName: userName,
-                picture: picture,
+                picture: picture || null,
                 loggedThrough:loggedThrough,
                 bio: null,
                 phone: null,
             }
-            const refreshToken = generateRefreshToken(user);
-            const accessToken = generateAccessToken(user);
+            const refreshToken = generateRefreshToken({email});
+            const accessToken = generateAccessToken({email});
 
-            const loginUser = await Login.create([{
+            const LOGIN = await Login.create([{
                 email: email,
-                password: hash,
+                password,
+                userName: userName,
+
                 loggedThrough: loggedThrough,
                 refreshToken: refreshToken
 
@@ -110,7 +107,8 @@ router.route('/').post(async(req,res)=>{
     
     } catch (error) {
         console.log(`trigger err`)
-        return checkError(error,res)
+        console.log(error)
+         checkError(error,res)
     }
 })
 

@@ -19,29 +19,33 @@ const router = express.Router()
 export const handleUserData = async(accessToken,loggedThrough,res) => {
     try {
         if(accessToken){
-            const  isValidToken = await verifyAccessToken(accessToken) 
+            console.log(`isvalid: `,isValidToken)
+            const  isValidToken = await verifyAccessToken(accessToken);
 
-            if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+            if(!isValidToken?.success) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
                 console.log(isValidToken)
-                const USER = await User.findOne({email: isValidToken?.email})
-                if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
 
-                if(USER.length <1 )return res.status(404).send({success:false,message:`NOT_FOUND`})
-                const user = {
-                    fullName: USER?.fullName  ,
-                    email: USER.email,
-                    picture: USER?.picture || null,
-                    bio: USER?.bio || null,
-                    phone: USER?.phone || null,
-                    loggedThrough: USER?.loggedThrough
+                if(isValidToken?.result?.email){
+                    const USER = await User.findOne({email: isValidToken?.result.email})
+                    if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+    
+                    if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
+                    const user = {
+                        userName: USER?.userName  ,
+                        email: USER.email,
+                        picture: USER?.picture || null,
+                        bio: USER?.bio || null,
+                        phone: USER?.phone || null,
+                        loggedThrough: USER?.loggedThrough
+                    }
+                    console.log(user)
+    
+                    const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
+                    return res.status(200).send({
+                        success:true,
+                        data: {user, loggedThrough: USER?.loggedThrough, accessToken: GeneratedAccessToken}
+                    })
                 }
-                console.log(user)
-
-                const GeneratedAccessToken = generateAccessToken(user) 
-                return res.status(200).send({
-                    success:true,
-                    data: {user, loggedThrough: USER?.loggedThrough, accessToken: GeneratedAccessToken}
-                })
         }
     }catch(err){
         console.log(err);
@@ -53,16 +57,19 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
 
 router.route('/').post(async(req,res)=>{
     try {
-    const {accessToken, loggedThrough} =req.body        
+    const {accessToken} =req.body        
         if(accessToken){
             const isValidToken = await verifyAccessToken(accessToken);
-            if(isValidToken?.err) return res.status(400).send({success:false,message:err})
-            const USER = User.findOne({email: isValidToken?.email})
+            if(!isValidToken?.success) return res.status(400).send({success:false,message:isValidToken?.err})
+            console.log(accessToken)
+            console.log(isValidToken)
+            
+            const USER = await User.findOne({email: isValidToken?.result.email});
             if(!USER )return res.status(404).send({success:false,message:`NOT_FOUND`})
-            if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+            // if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
 
             const user = {
-                fullName: USER?.fullName  ,
+                userName: USER?.userName  ,
                 email: USER.email,
                 picture: USER?.picture || null,
                 bio: USER?.bio || null,
@@ -73,7 +80,7 @@ router.route('/').post(async(req,res)=>{
             console.log(user)
             return res.status(200).send({
                 success:true,
-                data: {user, loggedThrough: result?.loggedThrough}
+                data: {user, loggedThrough: isValidToken?.loggedThrough}
             })
         }
     } catch (error) {

@@ -63,7 +63,9 @@ router.route('/register').post(async(req,res)=>{
             const loginUser = await Login.create([{
                 email: user.email,
                 loggedThrough: user.loggedThrough,
-                refreshToken: refreshToken
+                refreshToken: refreshToken,
+                userName: userName,
+
 
             }], {session})
             const USER = await User.create([
