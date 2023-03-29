@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-
+import Permission from "./Permission.js";
 
 const RoleSchema = new mongoose.Schema({
     name: {
@@ -33,7 +33,8 @@ RoleSchema.set('toJSON', {
         // delete ret.__v;
     }
 })
-const Role = mongoose.model('Role', RoleSchema, 'Roles')
+const Role = mongoose.model('Role', RoleSchema, 'roles')
+
 
 
 export default Role 

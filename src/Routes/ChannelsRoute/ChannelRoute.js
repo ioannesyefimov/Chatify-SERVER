@@ -2,7 +2,7 @@ import express from 'express';
 import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
-import {User,conn,Login,Channel} from '../../MongoDb/index.js'
+import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
 import { verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { Errors, checkError } from "../../utils.js"
@@ -66,9 +66,9 @@ const router = express.Router()
 
 
 router.route('/create').post(async(req,res) =>{
+    const session = await conn.startSession()
     try {
         const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        const session = await conn.startSession()
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
@@ -76,35 +76,50 @@ router.route('/create').post(async(req,res) =>{
         if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
 
         return await session.withTransaction(async()=>{
-            const newChannel = new Channel({
+            const newChannel =  await Channel.create([{
                 channelName
-            },{session});
+            }],{session});
 
-            LoggedUser.channels.push(newChannel)
-            LoggedUser.save()
+            if(!newChannel){
+                throw new Error(error)
+            }
 
-            newChannel.members.push(LoggedUser)
+            let AdminRole = await Role.findOne({name:"Admin"});
+            if(!AdminRole) return console.log(`ROLE ISN'T FOUND`)
+            newChannel?.members.push({member:LoggedUser,roles:[AdminRole]})
+            LoggedUser?.channels.push({channel:newChannel, roles:[AdminRole]})
             newChannel.save()
+            LoggedUser.save()
+            console.log(newChannel.members[0])
 
-            // let newChannel = await Channel.create([{channelName,}],{session});
+          let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
+            path:'members.member',
+            model: 'User',
+            populate:[
+            {
+                path:'roles',
+                model: 'Role',
+                populate: [{
+                    path:'permissions',
+                    model:'Permission'
+                }]
+            },
+        ],
+        },] });
+        let PopulatedChannels = await newChannel.populate({path:'members',populate:[{
+            path: 'member',
+            model: 'User',
        
+        }]});
 
-
-            LoggedUser.populate('channels')
-            .then(channels=>{
-                console.log('POPULATED User ' + channels)
-            })
-            .catch(err=>{return console.log(err)})
-
-            newChannel.populate('members')
-            .then(members=>{
-                console.log(`memmbers POPULATED: `, members)
-            })
-            .catch(err=>{return console.log(err)})
+            await session.commitTransaction();
+            session.endSession()
+            res.status(200).send({success:true, data: {PopulatedUser,PopulatedChannels}})
         })
 
     } catch (error) {
-         checkError(error,res)
+        console.log(`err triggered:`, error)
+        checkError(error,res)
     }
 })
 
@@ -117,34 +132,111 @@ router.route('/join').post(async(req,res)=>{
         let LoggedUser = await User.findOne({email:user?.email});
         if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
 
-            const newChannel = await Channel.findOne({channelName});
+            const joiningChannel = await Channel.findOne({channelName});
+            if(!joiningChannel) throw new Error(Errors.NOT_FOUND);
+            let memberRole = await Role.findOne({name:'Member'});
+            LoggedUser.channels.push({channel:joiningChannel, roles:[memberRole]})
+            joiningChannel.members.push({member:LoggedUser,roles: [memberRole]})
 
-            LoggedUser.channels.push(newChannel)
+            
+            
             LoggedUser.save()
-
-            newChannel.members.push(LoggedUser)
-            newChannel.save()
-
-            // let newChannel = await Channel.create([{channelName,}],{session});
-       
-
-
-            LoggedUser.populate('channels')
-            .then(channels=>{
-                console.log('POPULATED User ' + channels)
-            })
-            .catch(err=>{return console.log(err)})
-
-            newChannel.populate('members')
-            .then(members=>{
-                console.log(`memmbers POPULATED: `, members)
-            })
-            .catch(err=>{return console.log(err)})
+            joiningChannel.save()
+            let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
+                path:'members.member',
+                model: 'User',
+                populate:[
+                {
+                    path:'roles',
+                    model: 'Role',
+                    populate: [{
+                        path:'permissions',
+                        model:'Permission'
+                    }]
+                },
+            ],
+            },] });
+            let PopulatedChannels = await joiningChannel.populate({path:'members',populate:[{
+                path: 'member',
+                model: 'User',
+           
+            }]});
+            return res.status(200).send({success:true,data:{PopulatedUser,PopulatedChannels}})
 
     } catch (error) {
          checkError(error,res)
     }
 })
+
+router.route('/leave').post(async(req,res)=>{
+    const session = await conn.startSession()
+    try {
+        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        console.log(`body:`, req.body)
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+        let LoggedUser = await User.findOne({email:user?.email});
+        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
+        console.log(`LOGGED USER:`, )
+        LoggedUser.populate({path:'channels',model:'Channel',populate:[{path:'members', models:'User'}]}).then(user=>console.log(user))
+        return await session.withTransaction(async()=>{
+
+            // const leavingChannel = await Channel.findOneAndRemove({"members.member": LoggedUser._id, channelName},{session});
+            // console.log(`leavingChannel: `, leavingChannel)
+            // const leavingUser = await User.findOneAndRemove({"channels.channel": leavingChannel._id,'channels.channel.name': channelName},{session})
+            // console.log(`leaving channel: `, leavingChannel)
+            // console.log(`leaving User: `, leavingUser)
+
+            const leavingChannel = await Channel.findOne({"members.member": LoggedUser._id, channelName:channelName},{},{session});
+            const leavingUser = await User.findOne({'channels.channel': leavingChannel._id},{},{session})
+            console.log(`leavingUser:`, leavingUser)
+            console.log(`leavingChannel:`, leavingChannel)
+
+            await leavingChannel.members.pull({member: LoggedUser._id});
+            await leavingUser.channels.pull({channel: leavingChannel._id});
+            leavingChannel.save()
+            leavingUser.save()
+
+            if(!leavingChannel)
+            {
+                throw new Error(Errors.CHANNEL_NOT_FOUND);
+            }
+             else if (!leavingUser) {
+                throw new Error(Errors.USER_NOT_FOUND);
+            }
+            
+            let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
+                path:'members.member',
+                model: 'User',
+                populate:[
+                {
+                    path:'roles',
+                    model: 'Role',
+                    populate: [{
+                        path:'permissions',
+                        model:'Permission'
+                    }]
+                },
+            ],
+            },] });
+            let PopulatedChannels = await leavingChannel.populate({path:'members',populate:[{
+                path: 'member',
+                model: 'User',
+           
+            }]});
+            await session.commitTransaction()
+            session.endSession()
+            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannels, message:`CHANNEL HAS BEEN LEFT`}})
+                
+            // return res.status(200).send({success:true,data:{PopulatedUser,PopulatedChannels}})
+        })
+
+    } catch (error) {
+         checkError(error,res)
+    }
+})
+
 
 router.route('/').get(async(req,res) =>{
     try {
@@ -156,20 +248,39 @@ router.route('/').get(async(req,res) =>{
         let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND})
 
-        let channels = await Channel.find({members:LoggedUser._id});
+        let channels = await Channel.find({"members.member": LoggedUser._id });
+        console.log(channels)
+        if(channels.length === 0) throw new Error(Errors.NOT_FOUND)
         if(channels.length > 1){
-            channels.forEach(channel=>{
-                return channel.populate('users').then(user=>console.log(`channel user:`, user))
+            channels.forEach(async channel=>{
+               return await channel.populate('users').then(user=>console.log(`channel user:`, user))
             })
+            console.log(`channels: `,channels)
+            return res.status(200).send({success:true,data: channels})
             
         }
         console.log(`channels:`, channels)
-            let populatedUser = await LoggedUser.populate('channels');
-        let populatedChannels = await channels[0].populate('members');
+        let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
+            path:'members.member',
+            model: 'User',
+        },] });
+        let PopulatedChannels = await channels[0].populate({path:'members',populate:[{
+            path: 'member',
+            model: 'User',
+            populate: [{
+                path:'channels',
+                model: 'Channel',
+            }]
 
-            // if(!populatedUser) throw new Error(populated?.err)
-        console.log(`populated channels`, populatedChannels)
-        console.log('POPULATED User ' + populatedUser)
+        },{
+            path:'roles',
+            model: 'Role',
+            populate: [{
+                path:'permissions',
+                model:'Permission'
+            }]
+        },]});
+        return res.status(200).send({success:true,data:{PopulatedUser,PopulatedChannels}})
 
     } catch (error) {
          checkError(error,res)

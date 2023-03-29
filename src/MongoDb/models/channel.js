@@ -6,23 +6,30 @@ const ChannelSchema = new mongoose.Schema({
         type:String,
         trim:true,
         required:true,
-        unique: true,
+        unique: true
     },
     messages:[{
         default: [],
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Message'
     }],
-    members: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        unique:true,
-        roles: [{
-            type: mongoose.Schema.ObjectId,
-            ref: 'Role',
-            default: 'member'
-        }],
-    }],
+    members: [
+        {
+            member: {
+                unique:true,
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User',  
+            },
+            roles: [
+                {
+                    type: mongoose.Schema.ObjectId,
+                    ref: 'Role',
+                    default: ['member']
+                }
+            ],
+     },
+        
+],
 
 }, {versionKey: false })
 

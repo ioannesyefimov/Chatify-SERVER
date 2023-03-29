@@ -50,12 +50,22 @@ const UserSchema = new mongoose.Schema({
             validator:validateNumber,
                 message:Errors.INVALID_NUMBER  
             }
-        ]},
+    ]},
     channels: [
         {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'Channel'
-        }
+            channel:
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'Channel'
+            },
+            roles: [
+                {
+                    type: mongoose.Schema.ObjectId,
+                    ref: 'Role',
+                    default: ['member']
+                }
+            ],
+    }
     ]
      
 }, {versionKey: false })

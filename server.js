@@ -4,12 +4,14 @@ import cors from 'cors'
 import {Login,User} from './src/MongoDb/models/index.js'
 dotenv.config()
 
-import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute} from './src/Routes/index.js'
+import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
+import { Channel } from './src/MongoDb/index.js'
 const app = express();
 
-Login.watch().on('change', data=>console.log(data))
-User.watch().on('change', data=>console.log(data))
+Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
+User.watch().on('change', data=>console.log(`USER CHANGE : ` ,data))
+Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 
 app.use(
     cors()
@@ -34,6 +36,8 @@ app.use("/api/auth/token", TokenRoute)
 app.use("/api/upload", uploadRoute)
 app.use('/api/change', changeProfileRoute)
 app.use('/api/channels', ChannelRoute)
+
+app.use('/api/roles',RoleRoute)
 const PORT = process.env.PORT || 5050
 
 const StartServer = async ()=>{

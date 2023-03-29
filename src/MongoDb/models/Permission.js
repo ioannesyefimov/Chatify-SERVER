@@ -28,7 +28,7 @@ PermissionSchema.set('toJSON', {
         // delete ret.__v;
     }
 })
-const Permission = mongoose.model('Permission', PermissionSchema, 'Permissions')
+const Permission = mongoose.model('Permission', PermissionSchema, 'permissions')
 
 
 export default Permission 

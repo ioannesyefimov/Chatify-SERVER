@@ -8,6 +8,9 @@ import uploadRoute from './uploadRoute/uploadRoute.js'
 import changeProfileRoute from './Authentication/changeProfile/changeProfile.js'
 import facebookRoute from './Authentication/facebookAuthRoute.js'
 import ChannelRoute from './ChannelsRoute/ChannelRoute.js'
+
+
+import RoleRoute from './Roles/roles.js'
 export {
- SignInRoute,ChannelRoute, facebookRoute, changeProfileRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute
+ SignInRoute,RoleRoute,ChannelRoute, facebookRoute, changeProfileRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute
 }

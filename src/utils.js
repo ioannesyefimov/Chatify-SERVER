@@ -27,6 +27,7 @@ export function validateIsEmpty(params){
 
 export function checkError(error,res){
   console.log(`SERVER ERROR: `, error)
+  console.log(`typeof error: `, typeof error)
     let errors = {};
     if(error.name === 'ValidationError'){
       Object.keys(error.errors).forEach((key)=>{
@@ -36,8 +37,9 @@ export function checkError(error,res){
       console.log(error)
       return res.status(400).send({success:false, message:errors})
 
-    } 
+    } else
     if(error?.code){
+      console.log(`error code : `)
       let errors = {}
       let filteredErrs = Object.keys(error).filter(
           (err, i)=> err !== 'code' && err !=='index') 
@@ -58,8 +60,7 @@ export function checkError(error,res){
       console.log(`errors: `, errors)
       return res.status(400).send({succes:false,message: errors})
     }
-
-    return res.status(400).send({succes:false,message: error})
+    return res.status(500).send({succes:false,message: error})
 
   
 }
@@ -119,6 +120,8 @@ export function validatePassword(password, name){
 }
 
 export const Errors = {
+  CHANNEL_NOT_FOUND: 'CHANNEL_NOT_FOUND',
+  USER_NOT_FOUND: "USER_NOT_FOUND",
   INVALID_PASSWORD: `must be in English and contains at least one uppercase and lowercase character, one number, and one special character`,
   PASSWORD_CONTAINS_NAME: `MUST_NOT_CONTAIN_USER'S_INPUT`,
   USER_EXIST: 'USER_ALREADY_EXISTS',
