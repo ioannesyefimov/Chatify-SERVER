@@ -25,8 +25,21 @@ export function validateIsEmpty(params){
   })
 }
 
+export const throwErr = (err) =>{
+  if(err?.name && err.code){
+    let ERR = new Error
+    ERR.name = err?.name
+    ERR.code = err?.code
+    throw ERR
+
+  }
+  else {
+    throw new Error(err)
+  }
+}
+
 export function checkError(error,res){
-  console.log(`SERVER ERROR: `, error)
+  console.log(`SERVER error: `, error)
   console.log(`typeof error: `, typeof error)
     let errors = {};
     if(error.name === 'ValidationError'){
@@ -58,7 +71,11 @@ export function checkError(error,res){
       console.log(`FILTERED: `, filteredErrs)
       console.log(`error: `, error)
       console.log(`errors: `, errors)
-      return res.status(400).send({succes:false,message: errors})
+      if(Object.keys(errors).length === 0){
+        return res.status(400).send({succes:false,message:error})
+      }
+      return res.status(400).send({succes:false,message:errors})
+
     }
     return res.status(500).send({succes:false,message: error})
 
@@ -122,6 +139,8 @@ export function validatePassword(password, name){
 export const Errors = {
   CHANNEL_NOT_FOUND: 'CHANNEL_NOT_FOUND',
   USER_NOT_FOUND: "USER_NOT_FOUND",
+  NOT_A_MEMBER: "NOT_A_MEMBER",
+  ALREADY_MEMBER:'ALREADY_MEMBER',
   INVALID_PASSWORD: `must be in English and contains at least one uppercase and lowercase character, one number, and one special character`,
   PASSWORD_CONTAINS_NAME: `MUST_NOT_CONTAIN_USER'S_INPUT`,
   USER_EXIST: 'USER_ALREADY_EXISTS',
