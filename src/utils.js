@@ -30,6 +30,7 @@ export const throwErr = (err) =>{
     let ERR = new Error
     ERR.name = err?.name
     ERR.code = err?.code
+    ERR.arguments = err?.arguments
     throw ERR
 
   }
@@ -161,6 +162,7 @@ export const Errors = {
   JWT_MALFORMED: `jwt malformed` ,
   MISSING_ARGUMENTS: `MISSING_ARGUMENTS`,
   ABORTED_TRANSACTION: `ABORTED_TRANSACTION`,
+  NOT_HAVE_PERMISSION: 'NOT HAVE PERMISSION'
   
 }
 

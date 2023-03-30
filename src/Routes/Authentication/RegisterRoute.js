@@ -2,7 +2,7 @@ import express from 'express'
 import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
-import {checkError, validatePassword, Errors, validateIsEmpty } from '../../utils.js'
+import {checkError, validatePassword, Errors, validateIsEmpty, throwErr } from '../../utils.js'
 import {conn,User,Login} from '../../MongoDb/index.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 
@@ -38,13 +38,13 @@ export const  serverValidatePw = ( userName,email,password,res) =>{
 }
 
 router.route('/').post(async(req,res)=>{
+    const session = await conn.startSession()
     try {
-        const session = await conn.startSession()
 
         const {userName, email, password, picture, loggedThrough} = req.body
         let isEmpty = await validateIsEmpty({userName,email,password});
         if(!isEmpty?.success){
-            return res.status(400).send({success:false,message:{error:Errors.MISSING_ARGUMENTS,arg: isEmpty?.missing}})
+            throwErr({name:Errors.MISSING_ARGUMENTS,code:400})
         }
         const isLoggedAlready = await Login.findOne({email: email});
         if(isLoggedAlready !== null){
@@ -58,9 +58,6 @@ router.route('/').post(async(req,res)=>{
                 loggedThrough: isLoggedAlready?.loggedThrough
             })
         }
-        // let isValidPassword = await serverValidatePw(userName, email,password,res);
-        // if(!isValidPassword?.success) throw new Error({success:false,name: 'VALIDATION_ERROR',error:isValidPassword?.message})
-        // const hash = bcrypt.hashSync(password, 10)
         console.log('working')
        return await session.withTransaction(async()=>{
             let user = {
@@ -106,6 +103,7 @@ router.route('/').post(async(req,res)=>{
         })
     
     } catch (error) {
+
         console.log(`trigger err`)
         console.log(error)
          checkError(error,res)

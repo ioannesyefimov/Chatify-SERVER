@@ -2,7 +2,7 @@ import express from 'express';
 import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
-import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
+import {User,conn,Login,Channel,Permission,Role, Message} from '../../MongoDb/index.js'
 import { throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { Errors, checkError } from "../../utils.js"
@@ -11,64 +11,11 @@ dotenv.config()
 const router = express.Router()
 
 
- const handleGithubSingin = async(accessToken ,res)=>{
-    try {
-        
-       return  await jwt.verify(accessToken, process.env.JWT_TOKEN_SECRET, async (err,result) => {
-            if(err) {
-                console.log(err)
-                return res.status(404).send({success:false, message:err})
-            }
-            const session = await conn.startSession()
-            console.log(result)
-            const user = {
-                fullName: result?.fullName  ,
-                email: result.email,
-                picture: result?.picture || null,
-                loggedThrough: result?.loggedThrough,
-                bio: result?.bio,
-                phone: result?.phone,
-                loggedThrough: result?.loggedThrough
-               
-            }
-            const GeneratedRefreshToken = generateRefreshToken(user)
-            const GeneratedAccessToken = generateAccessToken(user)
-            
-            const isLoggedAlready = await Login.findOne({email: user?.email})
-            if(!isLoggedAlready){
-                return res.status(400).send({success:false, message:Errors.NOT_FOUND, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-            }
-            if(isLoggedAlready.loggedThrough !== 'Github') return res.status(400).send({success:false, message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
-
-
-           return await session.withTransaction(async()=>{
-
-                const GeneratedAccessToken = generateAccessToken(user)
-                
-
-                
-                if(isLoggedAlready && user.loggedThrough !== 'Github' ){
-                    return res.status(400).send({success:false, message: `LOGGED_DIFFERENTLY`, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-                }
-          
-                res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken, loggedThrough:user.loggedThrough, user: user}});
-               await session.commitTransaction(); 
-                session.endSession()
-            })
-        
-        })
-        
-    } catch (error) {
-        return checkError(error,res)
-    }
-}
-
-
 
 router.route('/create').post(async(req,res) =>{
     const session = await conn.startSession()
     try {
-        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        const {user,accessToken,channelName,message} = req.body  // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
@@ -77,31 +24,21 @@ router.route('/create').post(async(req,res) =>{
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 
         let isCreated = await Channel.findOne({channelName});
-        if(isCreated) {
-            throwErr({name: Errors.ALREADY_EXISTS,code:400})
+        if(!isCreated) {
+            throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
         }
-        console.log(`ISCREATED: `,isCreated)
         return await session.withTransaction(async()=>{
-            const newChannel =  new Channel({
-                channelName
+            const newMessage =  new Message({
+                message
             },{session});
 
-            console.log(`newchannel:`, newChannel)
-            if(!newChannel){
-                await session.abortTransaction()
-                throwErr(newChannel)
-               return console.log(`err not thrown`)
-            }
+            newMessage.user = LoggedUser
+            newMessage.channelAt = isCreated
 
-            let AdminRole = await Role.findOne({name:"Admin"});
-            if(!AdminRole){
-                throwErr({name:`ROLE NOT FOUND`, code:404})
-            } 
-            newChannel?.members?.push({member:LoggedUser,roles:[AdminRole]})
-            LoggedUser?.channels?.push({channel:newChannel, roles:[AdminRole]})
-            newChannel?.save()
-            LoggedUser?.save()
-            console.log(newChannel.members)
+            isCreated?.messages.push(newMessage)
+
+            newMessage?.save()
+            isCreated?.save()
 
           let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
             path:'members.member',
@@ -115,23 +52,31 @@ router.route('/create').post(async(req,res) =>{
                     model:'Permission'
                 }]
             },
-        ],
-        },] });
-        let PopulatedChannels = await newChannel.populate({path:'members',populate:[{
-            path: 'member',
-            model: 'User',
-       
-        }]});
+            ],
+        },{path:'messages', model:'Message'}] });
+        let PopulatedChannels = await isCreated.populate([
+            {
+                path:"members",populate:[
+                {
+                    path: 'member',
+                    model: 'User',
+                },]
+            }, 
+            {
+                path:"messages", model: 'Message'
+            }
+            ]);
 
-            await session.commitTransaction();
+        console.log(`channels:`, PopulatedChannels)
+        console.log(`user:`, PopulatedUser)
+        return await session.abortTransaction();
+        await session.commitTransaction();
             session.endSession()
             res.status(200).send({success:true, data: {PopulatedUser,PopulatedChannels}})
         })
 
     } catch (error) {
-        if(session.inTransaction) {
-            session.abortTransaction()
-        }
+  
         console.log(`err triggered:`, error)
         checkError(error,res)
     }
