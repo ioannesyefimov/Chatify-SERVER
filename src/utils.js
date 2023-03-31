@@ -5,19 +5,15 @@ export function validateIsEmpty(params){
   return new Promise((resolve,reject)=>{
     let missing={};
     for ( let param in params){
-     console.log(param, 'in', params)
       if(!params[param]){
-        console.log(`missing: `, param)
         missing[param] = param
       }
     }
     console.log(`missing: `, missing)
     if(Object.keys(missing).length > 0){
-      console.log(`rejecting`)
       return reject({success:false,missing})
     }
     if(Object.keys(missing).length === 0){
-      console.log(`resolving`)
 
       return resolve({success:true})
     }

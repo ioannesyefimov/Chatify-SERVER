@@ -11,68 +11,24 @@ dotenv.config()
 const router = express.Router()
 
 
- const handleGithubSingin = async(accessToken ,res)=>{
-    try {
-        
-       return  await jwt.verify(accessToken, process.env.JWT_TOKEN_SECRET, async (err,result) => {
-            if(err) {
-                console.log(err)
-                return res.status(404).send({success:false, message:err})
-            }
-            const session = await conn.startSession()
-            console.log(result)
-            const user = {
-                fullName: result?.fullName  ,
-                email: result.email,
-                picture: result?.picture || null,
-                loggedThrough: result?.loggedThrough,
-                bio: result?.bio,
-                phone: result?.phone,
-                loggedThrough: result?.loggedThrough
-               
-            }
-            const GeneratedRefreshToken = generateRefreshToken(user)
-            const GeneratedAccessToken = generateAccessToken(user)
-            
-            const isLoggedAlready = await Login.findOne({email: user?.email})
-            if(!isLoggedAlready){
-                return res.status(400).send({success:false, message:Errors.NOT_FOUND, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-            }
-            if(isLoggedAlready.loggedThrough !== 'Github') return res.status(400).send({success:false, message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
-
-
-           return await session.withTransaction(async()=>{
-
-                const GeneratedAccessToken = generateAccessToken(user)
-                
-
-                
-                if(isLoggedAlready && user.loggedThrough !== 'Github' ){
-                    return res.status(400).send({success:false, message: `LOGGED_DIFFERENTLY`, loggedThrough: isLoggedAlready[0]?.loggedThrough})
-                }
-          
-                res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken, loggedThrough:user.loggedThrough, user: user}});
-               await session.commitTransaction(); 
-                session.endSession()
-            })
-        
-        })
-        
-    } catch (error) {
-        return checkError(error,res)
-    }
-}
-
+  
 
 
 router.route('/create').post(async(req,res) =>{
     const session = await conn.startSession()
     try {
-        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,userEmail,accessToken}
+        const isEmpty = await validateIsEmpty(ARGUMENTS);
+        
+        if(!isEmpty.success){
+            throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
+        }
+       
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:user?.email});
+        let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 
@@ -93,12 +49,12 @@ router.route('/create').post(async(req,res) =>{
                return console.log(`err not thrown`)
             }
 
-            let AdminRole = await Role.findOne({name:"Admin"});
-            if(!AdminRole){
+            let creatorRole = await Role.findOne({name:"Creator"});
+            if(!creatorRole){
                 throwErr({name:`ROLE NOT FOUND`, code:404})
             } 
-            newChannel?.members?.push({member:LoggedUser,roles:[AdminRole]})
-            LoggedUser?.channels?.push({channel:newChannel, roles:[AdminRole]})
+            newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
+            LoggedUser?.channels?.push({channel:newChannel, roles:[creatorRole]})
             newChannel?.save()
             LoggedUser?.save()
             console.log(newChannel.members)
@@ -129,9 +85,6 @@ router.route('/create').post(async(req,res) =>{
         })
 
     } catch (error) {
-        if(session.inTransaction) {
-            session.abortTransaction()
-        }
         console.log(`err triggered:`, error)
         checkError(error,res)
     }
@@ -139,11 +92,18 @@ router.route('/create').post(async(req,res) =>{
 
 router.route('/join').post(async(req,res)=>{
     try {
-        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,userEmail,accessToken}
+        const isEmpty = await validateIsEmpty(ARGUMENTS);
+        
+        if(!isEmpty.success){
+            throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
+        }
+       
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:user?.email});
+        let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ) 
         {
             throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
@@ -197,20 +157,26 @@ router.route('/join').post(async(req,res)=>{
 router.route('/leave').post(async(req,res)=>{
     const session = await conn.startSession()
     try {
-        const {user,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
         console.log(`body:`, req.body)
+        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {accessToken,userEmail,channelName}
+        const isEmpty = await validateIsEmpty(ARGUMENTS);
+        
+        if(!isEmpty.success){
+            throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
+        }
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:user?.email});
-        let leavingChannel = await Channel.find({channelName});
-        if(!leavingChannel){
-            throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
-
-        }
+        let LoggedUser = await User.findOne({email:userEmail});
+        let leavingChannel = await Channel.findOne({channelName});
         if(!LoggedUser )
         { 
             throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
+
+        } else 
+        if(!leavingChannel){
+            throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
 
         }
         console.log(`LOGGED USER:`, )
@@ -218,24 +184,70 @@ router.route('/leave').post(async(req,res)=>{
         return await session.withTransaction(async()=>{
 
             const leavingChannel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{},{session});
-            const leavingUser = await User.findOne({'channels.channel': leavingChannel?._id, },{},{session})
-            if(!leavingUser || !leavingChannel) 
+            if(!leavingChannel) 
             {
                 throwErr({name:Errors.NOT_A_MEMBER,code: 400})
             }
-            console.log(`leavingUser:`, leavingUser)
+            console.log(`LoggedUser:`, LoggedUser)
             console.log(`leavingChannel:`, leavingChannel)
 
-            await leavingChannel.members.pull({member: LoggedUser._id});
-            await leavingUser.channels.pull({channel: leavingChannel._id});
-            leavingChannel.save()
-            leavingUser.save()
+            await leavingChannel.members.pull({member:member.member})
+            await LoggedUser.channels.pull({channel: leavingChannel._id});
+            await leavingChannel.save();
+            await LoggedUser.save();
+            let updatedChannel = await Channel.findOne({channelName});
+            if(updatedChannel.members.length === 0){
+                console.log(`DELETING CHANNEL`)
+               return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
+               .then(channel=>res.status(200).send({success:true,data: `CHANNEL "${updatedChannel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}))
+               .catch(err=>throwErr(err)) 
+            }
 
-    
-            let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
-                path:'members.member',
-                model: 'User',
-                populate:[
+
+
+            // filter channel and check whether it includes a role that is higher than Member.
+            let isThereAdmins = updatedChannel.members.some(member=> member.roles.some(role=> role.name === 'Admin' || role.name === 'Creator') === true) 
+            console.log(`isthereadmins:`, isThereAdmins)
+            //if there are no admins give someone an Admin Role
+            if(!isThereAdmins) {
+                let CreatorRole = await Role.findOne({name: 'Creator'});
+                let randomUserInd = Math.floor(Math.random()* updatedChannel.members.length)
+                console.log(`RANDOM indx: `, randomUserInd)
+                console.log(`RANDOM user: `, updatedChannel.members[randomUserInd])
+                let memberRole = await Role.findOne({name: 'Member'});
+                updatedChannel.members[randomUserInd]?.roles.pull(memberRole)
+                updatedChannel.members[randomUserInd]?.roles.push(CreatorRole)
+
+                updatedChannel.save()
+
+                console.log(`updatedChannel with new Creator:`, updatedChannel)
+            }
+
+            let PopulatedUser = await User.find({_id: LoggedUser?._id}).populate({path:'channels', populate: [
+                {
+                    path:'members.member',
+                    model: 'User',
+                },
+                {
+                    path: 'members',
+                    populate:[
+                        {
+                            path:'roles',
+                            model: 'Role',
+                            populate: [{
+                                path:'permissions',
+                                model:'Permission'
+                            }]
+                        },
+                    ],
+            
+                }
+            ] });
+            let PopulatedChannel = await Channel.findOne({channelName}).populate({path:'members',populate:[
+                {
+                    path: 'member',
+                    model: 'User',
+                },
                 {
                     path:'roles',
                     model: 'Role',
@@ -244,16 +256,12 @@ router.route('/leave').post(async(req,res)=>{
                         model:'Permission'
                     }]
                 },
-            ],
-            },] });
-            let PopulatedChannels = await leavingChannel.populate({path:'members',populate:[{
-                path: 'member',
-                model: 'User',
-           
-            }]});
+            ]})
+
+
             await session.commitTransaction()
             session.endSession()
-            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannels, message:`CHANNEL HAS BEEN LEFT`}})
+            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannel, message:`${LoggedUser?.userName} HAS LEFT CHANNEL "${leavingChannel?.channelName}"`}})
                 
             // return res.status(200).send({success:true,data:{PopulatedUser,PopulatedChannels}})
         })
@@ -332,11 +340,14 @@ router.route('/delete').delete(async(req,res)=>{
 })
 
 
+
 router.route('/').get(async(req,res) =>{
     try {
         const {userEmail} = req.query  // Bearer ACCESSTOKEN
+        if(!userEmail){
+            throwErr({name:Errors.MISSING_ARGUMENTS,code:400})
+        }
         // const  isValidToken = await verifyAccessToken(accessToken) 
-        console.log(userEmail)
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:userEmail});

@@ -1,5 +1,4 @@
 import mongoose from "mongoose";
-import Permission from "./Permission.js";
 
 const RoleSchema = new mongoose.Schema({
     name: {
@@ -11,6 +10,7 @@ const RoleSchema = new mongoose.Schema({
     description:[{
         type:String,
     }],
+
     permissions: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Permission',
