@@ -17,7 +17,7 @@ export function populateCollection(collection, name){
               model: 'User',
           },
           {
-              path: 'channels.roles',
+              path: 'channels.channel.members.roles',
               model: 'Role',
               populate: [{
                   path:'permissions',
@@ -38,13 +38,14 @@ export function populateCollection(collection, name){
               }]
           },
           {
-              path:'members.roles',
-              model: 'Role',
-              populate: [{
-                  path:'permissions',
-                  model:'Permission'
-              }]
+            path: 'members.roles',
+            model:'Role',
+            populate: [{
+              path:'permissions',
+              model:'Permission'
+           }]
           }
+         
         ])
         )   
       } 

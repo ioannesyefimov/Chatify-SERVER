@@ -58,13 +58,7 @@ const UserSchema = new mongoose.Schema({
                 type: mongoose.Schema.Types.ObjectId,
                 ref: 'Channel'
             },
-            roles: [
-                {
-                    type: mongoose.Schema.ObjectId,
-                    ref: 'Role',
-                    default: ['member']
-                }
-            ],
+           
     }
     ]
      

@@ -36,46 +36,27 @@ router.route('/create').post(async(req,res) =>{
             throwErr({name: Errors.ALREADY_EXISTS,code:400,arguments: isCreated })
         }
         console.log(`ISCREATED: `,isCreated)
-            const newChannel =  new Channel({
-                channelName
-            },{session});
+        const newChannel =  new Channel({
+            channelName
+        },{session});
 
-            console.log(`newchannel:`, newChannel)
-            if(!newChannel){
-                throwErr(newChannel)
-               return console.log(`err not thrown`)
-            }
+        console.log(`newchannel:`, newChannel)
+        if(!newChannel){
+            throwErr(newChannel)
+            return console.log(`err not thrown`)
+        }
 
-            let creatorRole = await Role.findOne({name:"Creator"});
-            if(!creatorRole){
-                throwErr({name:`ROLE NOT FOUND`, code:404})
-            } 
-            newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
-            LoggedUser?.channels?.push({channel:newChannel, roles:[creatorRole]})
-            newChannel?.save()
-            LoggedUser?.save()
-            console.log(newChannel.members)
-
-          let PopulatedUser = await LoggedUser.populate({path:'channels', populate: [{
-            path:'members.member',
-            model: 'User',
-            populate:[
-            {
-                path:'roles',
-                model: 'Role',
-                populate: [{
-                    path:'permissions',
-                    model:'Permission'
-                }]
-            },
-        ],
-        },] });
-        let PopulatedChannels = await newChannel.populate({path:'members',populate:[{
-            path: 'member',
-            model: 'User',
-       
-        }]});
-
+        let creatorRole = await Role.findOne({name:"Creator"});
+        if(!creatorRole){
+            throwErr({name:`ROLE NOT FOUND`, code:404})
+        } 
+        newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
+        LoggedUser?.channels?.push({channel:newChannel})
+        newChannel?.save({session})
+        LoggedUser?.save({session})
+        console.log(newChannel.members)
+        let PopulatedUser = await populateCollection(LoggedUser, "User");
+        let PopulatedChannels =await populateCollection(newChannel, "Channel");
             res.status(200).send({success:true, data: {PopulatedUser,PopulatedChannels}})
 
     } catch (error) {
@@ -165,12 +146,11 @@ router.route('/leave').post(async(req,res)=>{
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:userEmail});
-        let channel = await Channel.findOne({channelName});
         if(!LoggedUser )
         { 
             throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
-
-        } else 
+        }  
+        let channel = await Channel.findOne({channelName});
         if(!channel){
             throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
 
@@ -186,8 +166,8 @@ router.route('/leave').post(async(req,res)=>{
             let member = channel.members.find(member=>member.member.toString()===LoggedUser._id.toString())
             await channel.members.pull(member)
             await LoggedUser.channels.pull({channel: channel._id});
-            await channel.save();
-            await LoggedUser.save();
+            await channel.save({session});
+            await LoggedUser.save({session});
             // let updatedChannel = await Channel.findOne({channelName});
             let updatedChannel = channel
             if(updatedChannel.members.length === 0){
@@ -196,6 +176,7 @@ router.route('/leave').post(async(req,res)=>{
                .then(channel=>res.status(200).send({success:true,data: `CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}))
                .catch(err=>throwErr(err)) 
             }
+        
 
             // filter channel and check whether it includes a role that is higher than Member.
             let isThereAdmins = updatedChannel.members.some(member=> member.roles.some(role=> role.name === 'Admin' || role.name === 'Creator') === true) 
@@ -204,14 +185,16 @@ router.route('/leave').post(async(req,res)=>{
             if(!isThereAdmins) {
                 let CreatorRole = await Role.findOne({name: 'Creator'});
                 let randomUserInd = Math.floor(Math.random()* updatedChannel.members.length)
+                let randomUser = updatedChannel.members[randomUserInd]
+
                 console.log(`RANDOM indx: `, randomUserInd)
                 console.log(`RANDOM user: `, updatedChannel.members[randomUserInd])
                 let memberRole = await Role.findOne({name: 'Member'});
                 updatedChannel.members[randomUserInd]?.roles?.pull(memberRole)
                 updatedChannel.members[randomUserInd]?.roles?.push(CreatorRole)
-
-                updatedChannel.save()
-
+               
+                
+                updatedChannel.save({session})
                 console.log(`updatedChannel with new Creator:`, updatedChannel)
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
@@ -266,29 +249,32 @@ router.route('/delete').delete(async(req,res)=>{
 
         console.log(`DELETING CHANNEL: `, channel)
         console.log(`CHANNEL DELETING USER: `, LoggedUser)
-        let PopulatedUser = await populateCollection(LoggedUser,'User');
-
+        let PopulatedChannel = await populateCollection(channel,'Channel'); 
+        
+         
         // find users' roles in a chat and if they have role "Admin" delete channel
-        let isAdmin = LoggedUser.channels?.filter(channel => channel.channel.channelName === channelName)
-        console.log(`isAdmin: ${isAdmin}`)
-        isAdmin = isAdmin[0].roles?.some((role)=> 
+        let isAdmin = PopulatedChannel.members?.find(member => member.member?.email === userEmail)
+        console.log(`isAdmin: `, isAdmin)
+        isAdmin = isAdmin?.roles?.some((role)=> 
         {console.log(role);return role.name === 'Admin'|| role.name === 'Creator'}
         )
      
      
-        console.log(`user:`, PopulatedUser.channels[0].roles)
         console.log(`isAdmin: ${isAdmin}`)
         if(!isAdmin){
             throwErr({name: Errors.NOT_HAVE_PERMISSION, code: 400})
         }
-
-            let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
-            let usersInChannel = await  User.find({"channels.channel": deletedChannel?._id});
-
-            await usersInChannel.forEach((user,i)=>{
+        
+        let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
+       await  User.find({"channels.channel": deletedChannel?._id})
+       .then(async users=>{
+            for (let user of users){
                 user.channels.pull({channel: deletedChannel._id})
-                usersInChannel[i].save()
-            })
+                await user.save({session})
+            }
+       })
+       .catch(err=>throwErr(err))
+        
             
 
             console.log(`deletedChannel: ` ,deletedChannel)
