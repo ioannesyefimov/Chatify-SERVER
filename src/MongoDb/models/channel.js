@@ -24,7 +24,6 @@ const ChannelSchema = new mongoose.Schema({
                 {
                     type: mongoose.Schema.ObjectId,
                     ref: 'Role',
-                    default: ['member']
                 }
             ],
      },

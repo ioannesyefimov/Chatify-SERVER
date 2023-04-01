@@ -1,5 +1,58 @@
 import jwt from 'jsonwebtoken'
 
+
+export function populateCollection(collection, name){
+  console.log(`collection: `, collection)
+  console.log(`collectionName: `, name)
+  return new Promise((resolve, reject) => {
+    if(name === 'User'){
+      return resolve(
+        collection.populate([
+          {
+              path:'channels.channel', 
+              model:"Channel"
+          },
+          {
+              path:'channels.channel.members.member',
+              model: 'User',
+          },
+          {
+              path: 'channels.roles',
+              model: 'Role',
+              populate: [{
+                  path:'permissions',
+                  model:'Permission'
+              }]
+          },
+        ])
+        )
+    } else if (name === 'Channel'){
+        return resolve(
+          collection.populate([
+          {
+              path: 'members.member',
+              model: 'User',
+              populate: [{
+                  path:'channels.channel',
+                  model: 'Channel',
+              }]
+          },
+          {
+              path:'members.roles',
+              model: 'Role',
+              populate: [{
+                  path:'permissions',
+                  model:'Permission'
+              }]
+          }
+        ])
+        )   
+      } 
+      return reject(`${name} wasn't found in function`)
+  })
+}
+
+
 export function validateIsEmpty(params){
   
   return new Promise((resolve,reject)=>{
@@ -135,6 +188,7 @@ export function validatePassword(password, name){
 
 export const Errors = {
   CHANNEL_NOT_FOUND: 'CHANNEL_NOT_FOUND',
+  CHANNELS_NOT_FOUND: 'CHANNELS_NOT_FOUND',
   USER_NOT_FOUND: "USER_NOT_FOUND",
   NOT_A_MEMBER: "NOT_A_MEMBER",
   ALREADY_MEMBER:'ALREADY_MEMBER',
