@@ -3,7 +3,7 @@ import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
 import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
-import { throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
+import { capitalize, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { Errors, checkError,populateCollection } from "../../utils.js"
 
@@ -55,9 +55,9 @@ router.route('/create').post(async(req,res) =>{
         newChannel?.save({session})
         LoggedUser?.save({session})
         console.log(newChannel.members)
-        let PopulatedUser = await populateCollection(LoggedUser, "User");
+        // let PopulatedUser = await populateCollection(LoggedUser, "User");
         let PopulatedChannels =await populateCollection(newChannel, "Channel");
-            res.status(200).send({success:true, data: {PopulatedUser,PopulatedChannels}})
+            res.status(200).send({success:true, data: PopulatedChannels})
 
     } catch (error) {
         await session.abortTransaction();
@@ -203,7 +203,7 @@ router.route('/leave').post(async(req,res)=>{
            
 
          
-            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannel, message:`${LoggedUser?.userName} HAS LEFT CHANNEL "${channel?.channelName}"`}})
+            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
 
     } catch (error) {
         await session.abortTransaction();
@@ -279,7 +279,7 @@ router.route('/delete').delete(async(req,res)=>{
 
             console.log(`deletedChannel: ` ,deletedChannel)
 
-            return res.status(200).send({success:true,data: {message:`CHANNEL "${deletedChannel?.channelName}" HAS BEEN DELETED`}})
+            return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`}})
 
     } catch (error) {
         await session.abortTransaction();

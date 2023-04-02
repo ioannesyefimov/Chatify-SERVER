@@ -1,9 +1,18 @@
 import jwt from 'jsonwebtoken'
+export function capitalize(string){
+  return string && string.charAt(0).toUpperCase() + string.slice(1);
+}
 
+export function createDate(){
+    let date = new Date()
+  let DATE = {};
+  DATE.day = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`
+  DATE.time = `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+  return DATE
+  
+}
 
 export function populateCollection(collection, name){
-  console.log(`collection: `, collection)
-  console.log(`collectionName: `, name)
   return new Promise((resolve, reject) => {
     if(name === 'User'){
       return resolve(
@@ -48,6 +57,46 @@ export function populateCollection(collection, name){
          
         ])
         )   
+    } else if (name === 'Message'){
+        return resolve(
+          collection.populate([
+          {
+              path: 'members.member',
+              model: 'User',
+              populate: [{
+                  path:'channels.channel',
+                  model: 'Channel',
+              }]
+          },
+          {
+              path: 'messages',
+              model: 'Message',
+              populate: [
+                {
+                  path: 'user',
+                  model:'User',
+                },
+                {
+                  path:'channelAt',
+                  model:"Channel",
+                  populate: [{
+                      path: 'messages',
+                      model:'Message'
+                  }]
+                },
+                
+            ]
+          },
+          {
+            path: 'members.roles',
+            model:'Role',
+            populate: [{
+              path:'permissions',
+              model:'Permission'
+           }]
+          },
+        ])
+        )   
       } 
       return reject(`${name} wasn't found in function`)
   })
@@ -75,8 +124,8 @@ export function validateIsEmpty(params){
   })
 }
 
-export const throwErr = (err) =>{
-  if(err?.name && err.code){
+export const throwErr = (err={code:400}) =>{
+  if(err?.name ){
     let ERR = new Error
     ERR.name = err?.name
     ERR.code = err?.code

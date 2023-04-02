@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { createDate } from "../../utils.js";
 
 const MessageSchema = new mongoose.Schema({
     message: {
@@ -11,14 +12,14 @@ const MessageSchema = new mongoose.Schema({
         ref: 'User'
     },
     createdAt: {
-        type:Date,
-        default: Date.now(),
+        type:Object,
+        default: createDate(),
     },
     channelAt: [{
         type: mongoose.Schema.ObjectId,
         ref: 'Channel',
         required:true,
-    }]    
+    }]    ,
 
 }, {versionKey: false })
 
@@ -26,10 +27,7 @@ const MessageSchema = new mongoose.Schema({
 MessageSchema.set('toJSON', {
     virtuals: true,
     transform: (doc,result) => {
-        return {
-            ...result,
-            id: result._ID
-        }
+        delete result._id
     }
 })
 const Message= mongoose.model('Message', MessageSchema)

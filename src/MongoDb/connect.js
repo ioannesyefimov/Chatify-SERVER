@@ -1,5 +1,5 @@
 import mongoose from 'mongoose'
-
+// mongosh "mongodb+srv://chatify.qj85kaw.mongodb.net/chatify" --apiVersion 1 --username yefimov
 const connectDB = (url) => {
     mongoose.set(`strictQuery`, true)
     mongoose.connect(url)

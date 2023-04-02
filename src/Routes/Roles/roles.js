@@ -3,7 +3,7 @@
 import mongoose from "mongoose";
 import {Permission,Role,User,Channel, conn} from "../../MongoDb/index.js";
 import express from 'express'
-import { checkError, validateIsEmpty,throwErr,Errors, verifyAccessToken, populateCollection } from "../../utils.js";
+import { checkError, validateIsEmpty,throwErr,Errors, verifyAccessToken, populateCollection, capitalize } from "../../utils.js";
 
 
  
@@ -65,37 +65,51 @@ router.route('/giveRole').post(async(req,res)=>{
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        const  isValidToken = await verifyAccessToken(accessToken) ;
+        console.log(isValidToken)
+        if(isValidToken?.err) throwErr({name: isValidToken.err?.message ?? isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser ) 
+        let creator = await User.findOne({email:isValidToken?.result?.email})
+        if(!creator) throwErr({code:404,name:`TOKEN ERROR`,arguments:isValidToken?.result?.email})
+        let userToGive = await User.findOne({email:userEmail,arguments:isValidToken?.email});
+        if(!userToGive ) 
         {
             throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
         }
-        let channel = await Channel.findOne({channelName, "members.member": LoggedUser._id});
+
+        let channel = await Channel.findOne({channelName});
         if(!channel){
             throwErr({name:Errors.CHANNEL_NOT_FOUND,code: 404})
         } 
+        let populatedChannel = await populateCollection(channel,"Channel");
         let DELETING_ROLE 
-        let deletedRole = await Role.findOne({name:deleteRole}).then(role=>DELETING_ROLE=role).catch(err=>console.log(err))
+        await Role.findOne({name:deleteRole}).then(role=>DELETING_ROLE=role).catch(err=>console.log(err))
         let role = await Role.findOne({name:roleName});
         if(!role){
-            throwErr({name:`ROLE ${Errors.NOT_FOUND}`})
+            throwErr({name:`ROLE "${roleName}" ${Errors.NOT_FOUND}`,code:404})
         }
-    
-            for (let member of channel.members){
-                if(member.member.equals(LoggedUser._id)){
-                    if(DELETING_ROLE){
-                        member.roles.pull(DELETING_ROLE)
-                    }
-                    member.roles.push(role)
-                }
-            }
-        console.log(`UPDATED CHANNEL`, channel)
-        channel?.save({session})
+       let hasPermission = populatedChannel?.members.find(member=>member.member.equals(creator._id))?.roles.some(role=>role.name==="Admin"||role.name==='Creator')
 
-        return res.status(200).send({success:true,data:`role "${role?.name}" has been given to "${LoggedUser?.userName}"`})
+       if(!hasPermission) throwErr({code:400,name:Errors.NOT_HAVE_PERMISSION})
+            
+    let memberToGive = channel.members.find(member=>member.member.equals(userToGive._id))
+
+
+    if(!memberToGive){
+        throwErr({code:400,name:Errors.NOT_A_MEMBER})
+    }
+    let hasRole = memberToGive.roles.some(role=>role.name === roleName)
+    if(hasRole) throwErr({name:Errors.ALREADY_EXISTS,code:404, arguments: roleName})
+    if(DELETING_ROLE){
+        memberToGive.roles.pull(DELETING_ROLE)
+    }
+    memberToGive.roles.push(role)
+
+        
+    console.log(`UPDATED CHANNEL`, channel)
+    channel?.save({session})
+
+    return res.status(200).send({success:true,data:`role "${role?.name}" has been given to "${capitalize(userToGive?.userName)}"`})
 
     }  catch (error) {
         await session.abortTransaction();
@@ -116,17 +130,21 @@ router.route('/removeRole').post(async(req,res)=>{
     session.startTransaction()
 
     try {
-        const {userEmail,accessToken,channelName,roleName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {channelName,userEmail,accessToken}
+        const {userEmail,accessToken,channelName,deletingRole} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,userEmail,accessToken,deletingRole}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-       
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        const  isValidToken = await verifyAccessToken(accessToken) ;
+        if(isValidToken?.err) throwErr({name: isValidToken.err?.message ?? isValidToken?.err})
+        console.log(isValidToken)
 
+        let creator = await User.findOne({email:isValidToken?.result?.email});
+        if(!creator) {
+            throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
+        }
         let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ) 
         {
@@ -136,20 +154,30 @@ router.route('/removeRole').post(async(req,res)=>{
         if(!channel){
             throwErr({name:Errors.CHANNEL_NOT_FOUND,code: 404})
         } 
-        let role = await Role.findOne({name:roleName});
-        if(!role){
+
+        let deleteRole = await Role.findOne({name:deletingRole});
+        if(!deleteRole){
             throwErr({name:`ROLE ${Errors.NOT_FOUND}`})
         }
-    
-            for (let member of channel.members){
-                if(member.member.equals(LoggedUser._id)){
-                    member.roles.pull(role)
-                }
-            }
-        console.log(`UPDATED CHANNEL`, channel)
-        channel?.save({session})
+        
+        let populatedChannel = await populateCollection(channel,"Channel");
+        let creatorInChat = populatedChannel.members.find(member=>member.member.equals(creator._id));
+        if(!creatorInChat) throwErr({name:Errors.NOT_A_MEMBER, code:400, arguments: creator.email})
+        let userToRemove = channel.members.find(member=>member.member.equals(LoggedUser._id))
 
-        return res.status(200).send({success:true,data:`role "${role?.name}" has been removed from user named  "${LoggedUser?.userName}"`})
+        if(!userToRemove) throwErr({name:Errors.NOT_A_MEMBER, code:400, arguments: LoggedUser.email})
+        let hasPermission = creatorInChat?.roles.some(role=>role.name==='Creator' || role.name==='Admin')
+
+        if(!hasPermission) throwErr({name:Errors.NOT_HAVE_PERMISSION,code:400})
+        console.log(`CREATOR IN CHAT ` , creatorInChat)
+        let hasRole = userToRemove.roles.some(role=>role.name === deletingRole)
+        if(!hasRole) throwErr({name:Errors.NOT_FOUND,code:404, arguments: deletingRole})
+        userToRemove?.roles.pull(deleteRole)
+        channel?.save({session})
+           
+        console.log(`UPDATED CHANNEL`, channel)
+
+        return res.status(200).send({success:true,data:`role "${deleteRole?.name}" has been removed from user named  "${capitalize(userToGive?.userName)}"`})
 
     }  catch (error) {
         await session.abortTransaction();
