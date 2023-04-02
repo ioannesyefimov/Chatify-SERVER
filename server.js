@@ -7,6 +7,7 @@ dotenv.config()
 import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
+import { getUser } from './src/Routes/Authentication/getUserData.js'
 const app = express();
 
 Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
@@ -21,6 +22,7 @@ app.use(
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 
+app.route('/api/user/:userEmail').get(async(req,res)=>await getUser(req,res))
 
   
 
@@ -31,6 +33,7 @@ app.use('/api/auth/github', GitHubRoute)
 app.use('/api/auth/facebook', facebookRoute)
 app.use('/api/auth/google', GoogleRoute)
 app.use('/api/auth/user', UserDataRoute)
+
 
 app.use("/api/auth/token", TokenRoute)
 app.use("/api/upload", uploadRoute)

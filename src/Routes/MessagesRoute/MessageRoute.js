@@ -13,9 +13,9 @@ const router = express.Router()
 
 
 router.route('/create').post(async(req,res) =>{
-    const session = await conn.startSession()
-    session.startTransaction()
+    
     try {
+        const session = await conn.startSession()
         const {userEmail,accessToken,channelName,message} = req.body  // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
@@ -28,43 +28,40 @@ router.route('/create').post(async(req,res) =>{
         if(!isCreated) {
             throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
         }
+        isCreated = await Channel.findOne({channelName,"members.member": LoggedUser._id});
+        if(!isCreated){
+            throwErr({name: Errors.NOT_A_MEMBER, code:404})
+        }
+
+        return await session.withTransaction(async()=>{
+            
             const newMessage =  new Message({
-                message
+                message,user: LoggedUser,channelAt: isCreated
             },{session});
 
-            newMessage.user = LoggedUser
-            newMessage.channelAt = isCreated
+            console.log(`newMessage:`, newMessage)
+            isCreated = await Channel.findOneAndUpdate({channelName,"members.member": LoggedUser._id}, {$push: {messages: newMessage}}, {session});
+            // isCreated?.messages.push(newMessage)
 
-            isCreated?.messages.push(newMessage)
-
-            newMessage?.save({session})
-            isCreated?.save({session})
+            // isCreated?.save({session})
 
         // let PopulatedUser = await populateCollection(LoggedUser, "User");
         let populatedMessages = await populateCollection(isCreated,"Message");
 
         console.log(`channels:`, populatedMessages)
         // console.log(`user:`, PopulatedUser)
+        await session.commitTransaction()
+        session.endSession()
         res.status(200).send({success:true, data: {message:`${capitalize(LoggedUser?.userName)} has sent "${message}" to channel "${isCreated?.channelName}"`, channel: populatedMessages}})
+        })
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
          checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
-            await session.commitTransaction()
-            session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
-    }
+    } 
 })
 
 router.route('/delete').delete(async(req,res)=>{
-    const session = await conn.startSession()
-    session.startTransaction()
+
     try {
         const {userEmail,accessToken,channelName,message} = req.query
         // const  isValidToken = await verifyAccessToken(accessToken) 
@@ -102,24 +99,14 @@ router.route('/delete').delete(async(req,res)=>{
         }
 
         channel.messages?.pull(messageInChat)
-        channel.save({session})
+        channel.save()
         
-        // let PopulatedChannels = await populateCollection(channel, 'Message');
+  
         return res.status(200).send({success:true,data:{message:`"${message}" has been deleted from "${channel?.channelName}"`, channel: populatedMessages}})
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
          checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
-            await session.commitTransaction()
-            session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
-    }
+    } 
 })
 
 
@@ -131,17 +118,17 @@ router.route('/').get(async(req,res) =>{
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND, arguments: userEmail})
+        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_SIGNED_UP})
 
         let channels = await Channel.find({"members.member": LoggedUser._id });
         console.log(channels)
-        if(channels.length === 0) throwErr({name: Errors.NOT_FOUND})
+        if(channels.length === 0) throwErr({name: Errors.CHANNELS_NOT_FOUND, arguments:userEmail})
         if(channels.length > 1){
             let MESSAGES = []
             for(let channel of channels){
                 return await populateCollection(channel,"Message").then(data=>MESSAGES.push(data?.messages?.filter(message=>message?.user.equals(LoggedUser?._id))))
             }
-            MESSAGES.fil
+            
             console.log(`MESSAGES: `,MESSAGES)
 
             

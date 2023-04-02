@@ -8,7 +8,7 @@ import Login from '../../MongoDb/models/login.js'
 
 
 import jwt from 'jsonwebtoken'
-import { checkError, Errors, verifyAccessToken } from '../../utils.js'
+import { checkError, Errors, populateCollection, throwErr, verifyAccessToken } from '../../utils.js'
 import { generateAccessToken } from './tokenRoute.js'
 
 dotenv.config();
@@ -23,7 +23,6 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
             const  isValidToken = await verifyAccessToken(accessToken);
 
             if(!isValidToken?.success) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-                console.log(isValidToken)
 
                 if(isValidToken?.result?.email){
                     const USER = await User.findOne({email: isValidToken?.result.email})
@@ -49,8 +48,7 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
         }
     }catch(err){
         console.log(err);
-        return checkError(error,res)
-        return res.status(500).send({success:false, message:err})
+        checkError(err,res)
     }
     }
 
@@ -66,8 +64,6 @@ router.route('/').post(async(req,res)=>{
             
             const USER = await User.findOne({email: isValidToken?.result.email});
             if(!USER )return res.status(404).send({success:false,message:`NOT_FOUND`})
-            // if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
-
             const user = {
                 userName: USER?.userName  ,
                 email: USER.email,
@@ -85,9 +81,38 @@ router.route('/').post(async(req,res)=>{
         }
     } catch (error) {
         console.log(`error: `, error)
-        return checkError(error,res)
-        return res.status(500).send({success: false, message: error})
+         checkError(error,res)
     }
 })
+
+export const getUser = async(req,res)=>{
+    try {
+        const {userEmail} =req.params        
+        const USER = await User.findOne({email:userEmail});
+        if(!USER ){
+            throwErr({name:Errors.NOT_SIGNED_UP,code:400 })
+        }
+
+        const user = {
+            userName: USER?.userName  ,
+            email: USER.email,
+            picture: USER?.picture || null,
+            bio: USER?.bio || null,
+            phone: USER?.phone || null,
+            channels: USER?.channels
+        }
+        let populatedUser = await populateCollection(USER,'User');
+        delete populatedUser.loggedThrough
+        delete populatedUser.phone
+        console.log(user)
+        return res.status(200).send({
+            success:true,
+            data: {user:populatedUser }
+        })
+    } catch (error) {
+         checkError(error,res)
+    }
+}
+
 
 export default router

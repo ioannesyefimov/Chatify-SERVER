@@ -1,11 +1,8 @@
 import express from 'express';
-import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
-import {Octokit} from 'octokit'
 import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
-import { capitalize, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
+import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
-import { Errors, checkError,populateCollection } from "../../utils.js"
 
 
 dotenv.config()
@@ -13,9 +10,8 @@ const router = express.Router()
 
 
 router.route('/create').post(async(req,res) =>{
-    const session = await conn.startSession()
-    session.startTransaction()
     try{
+        const session = await conn.startSession()
         const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {channelName,userEmail,accessToken}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
@@ -35,49 +31,44 @@ router.route('/create').post(async(req,res) =>{
         if(isCreated) {
             throwErr({name: Errors.ALREADY_EXISTS,code:400,arguments: isCreated })
         }
-        console.log(`ISCREATED: `,isCreated)
-        const newChannel =  new Channel({
-            channelName
-        },{session});
 
-        console.log(`newchannel:`, newChannel)
-        if(!newChannel){
-            throwErr(newChannel)
-            return console.log(`err not thrown`)
-        }
+        return await session.withTransaction(async()=>{
 
-        let creatorRole = await Role.findOne({name:"Creator"});
-        if(!creatorRole){
-            throwErr({name:`ROLE NOT FOUND`, code:404})
-        } 
-        newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
-        LoggedUser?.channels?.push({channel:newChannel})
-        newChannel?.save({session})
-        LoggedUser?.save({session})
-        console.log(newChannel.members)
-        // let PopulatedUser = await populateCollection(LoggedUser, "User");
-        let PopulatedChannels =await populateCollection(newChannel, "Channel");
-            res.status(200).send({success:true, data: PopulatedChannels})
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
-         checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
+            console.log(`ISCREATED: `,isCreated)
+            const newChannel =  new Channel({
+                channelName
+            },{session});
+    
+            console.log(`newchannel:`, newChannel)
+            if(!newChannel){
+                throwErr(newChannel)
+                return console.log(`err not thrown`)
+            }
+    
+            let creatorRole = await Role.findOne({name:"Creator"});
+            if(!creatorRole){
+                throwErr({name:`ROLE NOT FOUND`, code:404})
+            } 
+            newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
+            LoggedUser?.channels?.push({channel:newChannel})
+           await newChannel?.save({session})
+           await LoggedUser?.save({session})
+            console.log(newChannel.members)
+            // let PopulatedUser = await populateCollection(LoggedUser, "User");
+            let PopulatedChannels =await populateCollection(newChannel, "Channel");
             await session.commitTransaction()
             session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
+            return res.status(200).send({success:true, data: PopulatedChannels})
+        })
+
+    } catch (error) {
+         checkError(error,res)
     }
 })
 
 router.route('/join').post(async(req,res)=>{
-    const session = await conn.startSession()
-    session.startTransaction()
     try {
+        const session = await conn.startSession()
         const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {channelName,userEmail,accessToken}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
@@ -106,34 +97,28 @@ router.route('/join').post(async(req,res)=>{
         if(isAlreadyAmember){
             throwErr({name:Errors.ALREADY_MEMBER,code:400})
         }
-        let memberRole = await Role.findOne({name:'Member'});
-        LoggedUser?.channels.push({channel:joiningChannel, roles:[memberRole]})
-        joiningChannel?.members.push({member:LoggedUser,roles: [memberRole]})
-        
-        LoggedUser.save()
-        joiningChannel.save()
-        let PopulatedUser = await populateCollection(LoggedUser,'User');
-        let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
-        return res.status(200).send({success:true,data:{user: PopulatedUser,channel: PopulatedChannels}})
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
-         checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
+        return await session.withTransaction(async()=>{
+
+            let memberRole = await Role.findOne({name:'Member'});
+            LoggedUser?.channels.push({channel:joiningChannel, roles:[memberRole]})
+            joiningChannel?.members.push({member:LoggedUser,roles: [memberRole]})
+            
+            LoggedUser.save()
+            joiningChannel.save()
+            let PopulatedUser = await populateCollection(LoggedUser,'User');
+            let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
             await session.commitTransaction()
             session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
+            return res.status(200).send({success:true,data:{user: PopulatedUser,channel: PopulatedChannels}})
+        })
+    } catch (error) {
+         checkError(error,res)
     }
 })
 
 router.route('/leave').post(async(req,res)=>{
-    const session = await conn.startSession()
-    session.startTransaction()
-        try {
+    try {
+        const session = await conn.startSession()
         console.log(`body:`, req.body)
         const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {accessToken,userEmail,channelName}
@@ -155,15 +140,18 @@ router.route('/leave').post(async(req,res)=>{
             throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
 
         }
+        channel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{});
+        if(!channel) 
+        {
+            throwErr({name:Errors.NOT_A_MEMBER,code: 400})
+        }
 
-            channel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{},{session});
-            if(!channel) 
-            {
-                throwErr({name:Errors.NOT_A_MEMBER,code: 400})
-            }
+        return await session.withTransaction(async()=>{
+
+        
             console.log(`LoggedUser:`, LoggedUser)
             console.log(`leavingChannel:`, channel)
-            let member = channel.members.find(member=>member.member.toString()===LoggedUser._id.toString())
+            let member = channel.members.find(member=>member.member.equals(LoggedUser._id))
             await channel.members.pull(member)
             await LoggedUser.channels.pull({channel: channel._id});
             await channel.save({session});
@@ -172,15 +160,16 @@ router.route('/leave').post(async(req,res)=>{
             let updatedChannel = channel
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
-               return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-               .then(channel=>res.status(200).send({success:true,data: `CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}))
-               .catch(err=>throwErr(err)) 
+                return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
+                .then(channel=>res.status(200).send({success:true,data: `CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}))
+                .catch(err=>throwErr(err)) 
             }
         
 
             // filter channel and check whether it includes a role that is higher than Member.
             let isThereAdmins = updatedChannel.members.some(member=> member.roles.some(role=> role.name === 'Admin' || role.name === 'Creator') === true) 
             console.log(`isthereadmins:`, isThereAdmins)
+            let PopulatedChannel = await populateCollection(updatedChannel, 'Channel')
             //if there are no admins give someone an Admin Role
             if(!isThereAdmins) {
                 let CreatorRole = await Role.findOne({name: 'Creator'});
@@ -188,45 +177,34 @@ router.route('/leave').post(async(req,res)=>{
                 let randomUser = updatedChannel.members[randomUserInd]
 
                 console.log(`RANDOM indx: `, randomUserInd)
-                console.log(`RANDOM user: `, updatedChannel.members[randomUserInd])
+                console.log(`RANDOM user: `, randomUser)
                 let memberRole = await Role.findOne({name: 'Member'});
+
                 updatedChannel.members[randomUserInd]?.roles?.pull(memberRole)
                 updatedChannel.members[randomUserInd]?.roles?.push(CreatorRole)
-               
+                
                 
                 updatedChannel.save({session})
                 console.log(`updatedChannel with new Creator:`, updatedChannel)
+                isThereAdmins = PopulatedChannel?.members[randomUserInd]
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
-       
-            let PopulatedChannel = await populateCollection(updatedChannel, 'Channel')
            
-
-         
-            return res.status(200).send({success:true,data: {user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
-
-    } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
-         checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
             await session.commitTransaction()
             session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
-    }
+            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
+        })
+    } catch (error) {
+         checkError(error,res)
+    } 
 })
 
 
 
 router.route('/delete').delete(async(req,res)=>{
-    const session = await conn.startSession()
-    session.startTransaction()
-
+    
     try {
+        const session = await conn.startSession()
         const {accessToken, channelName, userEmail} = req.query
         let ARGUMENTS = {accessToken,channelName,userEmail}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
@@ -234,7 +212,7 @@ router.route('/delete').delete(async(req,res)=>{
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-          let LoggedUser = await User.findOne({email:userEmail});
+        let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ) {
             throwErr({name:Errors.NOT_FOUND, code:404})
         }
@@ -243,7 +221,7 @@ router.route('/delete').delete(async(req,res)=>{
             throwErr({name:Errors.CHANNEL_NOT_FOUND, code: 404})
         }
         // Compare member's id with user's id to check whether they are in a channel
-         else if(!channel.members.some(member=> member.member.toString() === LoggedUser._id.toString())){
+         else if(!channel.members.some(member=> member.member.equals(LoggedUser._id))){
             throwErr({name:Errors.NOT_A_MEMBER, code: 404})
          }
 
@@ -264,55 +242,48 @@ router.route('/delete').delete(async(req,res)=>{
         if(!isAdmin){
             throwErr({name: Errors.NOT_HAVE_PERMISSION, code: 400})
         }
-        
-        let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
-       await  User.find({"channels.channel": deletedChannel?._id})
-       .then(async users=>{
-            for (let user of users){
-                user.channels.pull({channel: deletedChannel._id})
-                await user.save({session})
-            }
-       })
-       .catch(err=>throwErr(err))
-        
+        return await session.withTransaction(async()=>{
+            let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
+            await  User.find({"channels.channel": deletedChannel?._id})
+            .then(async users=>{
+                for (let user of users){
+                    user.channels.pull({channel: deletedChannel._id})
+                     await user.save({session})
+                }
+            })
+            .catch(err=>throwErr(err))
             
+                
 
-            console.log(`deletedChannel: ` ,deletedChannel)
-
-            return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`}})
+                console.log(`deletedChannel: ` ,deletedChannel)
+                await session.commitTransaction()
+                session.endSession()
+                return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`}})
+            
+        })        
 
     } catch (error) {
-        await session.abortTransaction();
-        session.endSession()
          checkError(error,res)
-    } finally {
-        if(session.inTransaction() === true){
-            console.log(`commiting trasaction`)
-            await session.commitTransaction()
-            session.endSession()
-        } else {
-            console.log(`session was aborted`);
-        }
-    }
+    } 
 })
 
-
-
-router.route('/').get(async(req,res) =>{
+router.route('/userChannels').get(async(req,res) =>{
     try {
         const {userEmail} = req.query  // Bearer ACCESSTOKEN
         if(!userEmail){
-            throwErr({name:Errors.MISSING_ARGUMENTS,code:400})
+            throwErr({err:{name:Errors.MISSING_ARGUMENTS,code:400}})
         }
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser ) return res.status(404).send({success:false,message:Errors.NOT_FOUND})
+        if(!LoggedUser ) throwErr({err:{name: Errors.NOT_FOUND,code:404}})
 
         let channels = await Channel.find({"members.member": LoggedUser._id });
         console.log(channels)
-        if(channels.length === 0) throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
+        if(channels.length === 0){
+             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
+        }
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
@@ -331,5 +302,68 @@ router.route('/').get(async(req,res) =>{
 
 
 )
+
+
+router.route('/channel/:channelName').get(async(req,res) =>{
+    try {
+        const {channelName} = req?.params // Bearer ACCESSTOKEN
+        console.log(req.params)
+        if(!channelName){
+            throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
+        }
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+
+        let channels = await Channel.find({channelName});
+        console.log(`channels: `, channels)
+        if(channels.length === 0){
+             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
+        }
+        if(channels.length > 1){
+            // loop through every channel that user is member of and then send it 
+            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Message')))
+            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        }
+       
+        let PopulatedChannels = await populateCollection(channels[0], 'Message')
+       console.log(`PopulatedChannels,` , PopulatedChannels)
+        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+
+    } catch (error) {
+         checkError(error,res)
+    }
+}
+
+
+)
+router.route('/').get(async(req,res) =>{
+    try {
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+
+        let channels = await Channel.find({ });
+        console.log(channels)
+        if(channels.length === 0){
+             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
+        }
+        if(channels.length > 1){
+            // loop through every channel that user is member of and then send it 
+            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
+            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        }
+       
+        let PopulatedChannels = await populateCollection(channels[0], 'Channel')
+       
+        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+
+    } catch (error) {
+         checkError(error,res)
+    }
+}
+
+
+)
+
 
 export default router

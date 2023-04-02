@@ -124,7 +124,38 @@ export function validateIsEmpty(params){
   })
 }
 
-export const throwErr = (err={code:400}) =>{
+export const executeInQueue = async ({
+  dataAry, //the array that you .map through
+  callback, //the function that you fire inside .map
+  idx = 0,
+  results = [],
+  session
+}) => {
+  if (idx === dataAry?.length) return results;
+  //else if idx !== dataAry.length
+  let d = dataAry[idx];
+
+  try {
+    let result = await callback(d, idx);
+
+    results.push(result);
+
+    return executeInQueue({
+      dataAry,
+      callback,
+      log,
+      idx: idx + 1,
+      results,
+      session
+    });
+  } catch (err) {
+    console.log({ err });
+    return results.push("error");
+  }
+};
+
+export const throwErr =  ( err) =>{
+ 
   if(err?.name ){
     let ERR = new Error
     ERR.name = err?.name
@@ -134,7 +165,7 @@ export const throwErr = (err={code:400}) =>{
 
   }
   else {
-    throw new Error(err)
+    throw new Error({message: err})
   }
 }
 
