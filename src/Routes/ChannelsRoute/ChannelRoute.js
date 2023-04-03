@@ -109,7 +109,7 @@ router.route('/join').post(async(req,res)=>{
             let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
             await session.commitTransaction()
             session.endSession()
-            return res.status(200).send({success:true,data:{user: PopulatedUser,channel: PopulatedChannels}})
+            return res.status(200).send({success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}})
         })
     } catch (error) {
          checkError(error,res)
@@ -192,7 +192,7 @@ router.route('/leave').post(async(req,res)=>{
            
             await session.commitTransaction()
             session.endSession()
-            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
+            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser?.userName, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
         })
     } catch (error) {
          checkError(error,res)
@@ -293,7 +293,7 @@ router.route('/userChannels').get(async(req,res) =>{
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{user:PopulatedUser,channels: PopulatedChannels}})
+        return res.status(200).send({success:true,data:{user:PopulatedUser?.userName,channels: PopulatedChannels}})
 
     } catch (error) {
          checkError(error,res)
@@ -314,7 +314,7 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-
+      
         let channels = await Channel.find({channelName});
         console.log(`channels: `, channels)
         if(channels.length === 0){
@@ -322,11 +322,11 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         }
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
-            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Message')))
+            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
             return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
         }
        
-        let PopulatedChannels = await populateCollection(channels[0], 'Message')
+        let PopulatedChannels = await populateCollection(channels[0], 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
         return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
 
@@ -352,7 +352,6 @@ router.route('/').get(async(req,res) =>{
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
             return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
         }
-       
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
         return res.status(200).send({success:true,data:{channels: PopulatedChannels}})

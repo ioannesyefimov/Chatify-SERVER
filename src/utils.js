@@ -14,7 +14,8 @@ export function createDate(){
 
 export function populateCollection(collection, name){
   return new Promise((resolve, reject) => {
-    if(name === 'User'){
+    if(name === 'User' && collection?.email){
+      // console.log(`COLLECTION USER: `, collection)
       return resolve(
         collection.populate([
           {
@@ -35,7 +36,9 @@ export function populateCollection(collection, name){
           },
         ])
         )
-    } else if (name === 'Channel'){
+    } else if (name === 'Channel' && collection?.channelName){
+      // console.log(`COLLECTION Channel: `, collection)
+
         return resolve(
           collection.populate([
           {
@@ -47,54 +50,44 @@ export function populateCollection(collection, name){
               }]
           },
           {
+            path: 'messages',
+            model: 'Message',
+            populate: [{
+                path:'user',
+                model: 'User',
+            },{
+              path:'channelAt',
+              model: 'Channel'
+            }]
+          },
+          {
             path: 'members.roles',
             model:'Role',
             populate: [{
               path:'permissions',
               model:'Permission'
            }]
-          }
+          },
+          
          
         ])
         )   
-    } else if (name === 'Message'){
+    } else if (name === 'Message' && collection?.message){
+      // console.log(`COLLECTION Message: `, collection)
         return resolve(
           collection.populate([
-          {
-              path: 'members.member',
-              model: 'User',
+            {
+              path: 'user',
+              model:'User',
+            },
+            {
+              path:'channelAt',
+              model:"Channel",
               populate: [{
-                  path:'channels.channel',
-                  model: 'Channel',
+                  path: 'messages',
+                  model:'Message'
               }]
-          },
-          {
-              path: 'messages',
-              model: 'Message',
-              populate: [
-                {
-                  path: 'user',
-                  model:'User',
-                },
-                {
-                  path:'channelAt',
-                  model:"Channel",
-                  populate: [{
-                      path: 'messages',
-                      model:'Message'
-                  }]
-                },
-                
-            ]
-          },
-          {
-            path: 'members.roles',
-            model:'Role',
-            populate: [{
-              path:'permissions',
-              model:'Permission'
-           }]
-          },
+            },
         ])
         )   
       } 
