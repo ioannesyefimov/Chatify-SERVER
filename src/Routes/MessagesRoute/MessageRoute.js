@@ -3,7 +3,7 @@ import  fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
 import {Octokit} from 'octokit'
 import {User,conn,Login,Channel,Permission,Role, Message} from '../../MongoDb/index.js'
-import { capitalize, populateCollection, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
+import { capitalize, createDate, populateCollection, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { Errors, checkError } from "../../utils.js"
 
@@ -42,7 +42,7 @@ router.route('/create').post(async(req,res) =>{
             // isCreated?.messages.push(newMessage)
             newMessage.user = LoggedUser
             newMessage.channelAt = isCreated
-            
+            newMessage.createdAt = createDate()
             await newMessage.save({session})
             isCreated?.messages.push(newMessage)
             await isCreated.save({session})
@@ -74,7 +74,7 @@ router.route('/delete').delete(async(req,res)=>{
         let ARGUMENTS = {channelName,userEmail,accessToken,message}
         console.log(`reqQuery:`, req.query)
         if(timeStamp){
-            messageDate = JSON?.parse(timeStamp)
+            messageDate = JSON?.parse(timeStamp.replaceAll('/', '.'))
         }
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         console.log(`time:`, messageDate?.time);
@@ -88,8 +88,8 @@ router.route('/delete').delete(async(req,res)=>{
             {
                 throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
             }
-            let message = await Message.findOne({message,user:LoggedUser._id}).session(session);
-            if(!message){
+            let msg = await Message.findOne({message,user:LoggedUser._id}).session(session);
+            if(!msg){
                 throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message, by: LoggedUser?.userName}})
 
             }
@@ -107,12 +107,20 @@ router.route('/delete').delete(async(req,res)=>{
             // console.log(`populateMessages`, populatedMessages)
             // let messageInChat = populatedMessages?.messages?.filter(msg=>msg?.message===message && msg?.user.equals(LoggedUser._id))
             // console.log(`BEFORE, `, messageInChat);
-            if(messageDate){
-                messageInChat.filter(msg=>msg.createdAt.day===messageDate.day&&msg.createdAt.time===messageDate.time)
-                message = await Message.findOne({createdAt: messageDate.day,time:messageDate.time,message,user:LoggedUser._id});
+            if(messageDate?.day){
+                // messageInChat.filter(msg=>msg.createdAt.day===messageDate.day&&msg.createdAt.time===messageDate.time)
+                msg = await Message.findOne({createdAt: {day: messageDate.day,time:messageDate.time},message,user:LoggedUser._id});
+                await Message.findOneAndDelete({message,user:LoggedUser._id,createdAt: messageDate}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
+
+            } else if (!messageDate){
+                await Message.findOneAndDelete({message,user:LoggedUser._id}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
+
             }
-            console.log(`AFTER, `, messageInChat);
-            console.log(`MESSAGE IN CHAT`, messageInChat)
+            if(!msg && messageDate?.day){
+                throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message, by: LoggedUser?.userName, time: messageDate ?? messageDate}})
+
+            }
+        
             // if(!messageInChat.length){
             //     // let possibleMessages = await Message.find({'user': LoggedUser._id});
             //     // console.log(`possibleMessages`, possibleMessages)
@@ -127,10 +135,9 @@ router.route('/delete').delete(async(req,res)=>{
             //     throwErr({name: Errors.NOT_FOUND, arguments: {message, by: LoggedUser?.userName, time: messageDate ?? messageDate }})
             // }
     
-            isMember.messages?.pull(messageInChat[0])
+            isMember.messages?.pull(message)
             await isMember.save({session})
 
-            await Message.findOneAndDelete({message,user:LoggedUser._id}).session(session).then(data=>console.log(data)).catch(err=>console.log(err))
       
             return res.status(200).send({success:true,data:{message:`"${message}" has been deleted from "${isMember?.channelName}"`, channel: populatedChannel}})
         })

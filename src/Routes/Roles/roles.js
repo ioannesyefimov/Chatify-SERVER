@@ -36,7 +36,7 @@ router.route('/create').post(async(req,res)=>{
         newRole.save({session})
         newPermission.save({session})
       
-        return res.status(200).send({success:true,data: `"${newRole.name}" has been created`})
+        return res.status(200).send({success:true,data: {message:`"${newRole.name}" has been created`}})
     } catch (error) {
         await session.abortTransaction();
         session.endSession()
@@ -109,7 +109,7 @@ router.route('/giveRole').post(async(req,res)=>{
     console.log(`UPDATED CHANNEL`, channel)
     channel?.save({session})
 
-    return res.status(200).send({success:true,data:`role "${role?.name}" has been given to "${capitalize(userToGive?.userName)}"`})
+    return res.status(200).send({success:true,data:{message:`role "${role?.name}" has been given to "${capitalize(userToGive?.userName)}"`},  message2: DELETING_ROLE?.name ?`${DELETING_ROLE?.name} has been removed from ${userToGive?.userName}`: null  })
 
     }  catch (error) {
         await session.abortTransaction();
@@ -177,7 +177,7 @@ router.route('/removeRole').post(async(req,res)=>{
            
         console.log(`UPDATED CHANNEL`, channel)
 
-        return res.status(200).send({success:true,data:`role "${deleteRole?.name}" has been removed from user named  "${capitalize(userToGive?.userName)}"`})
+        return res.status(200).send({success:true,data:{message:`role "${deleteRole?.name}" has been removed from user named  "${capitalize(userToGive?.userName)}"`}})
 
     }  catch (error) {
         await session.abortTransaction();

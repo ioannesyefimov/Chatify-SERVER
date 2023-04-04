@@ -1,5 +1,5 @@
 import mongoose, { Error } from "mongoose";
-import { Errors } from "../../utils.js";
+import { Errors, capitalize } from "../../utils.js";
 export const  validateEmail = function(email) {
     const regex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; 
        return regex.test(email)
@@ -18,6 +18,7 @@ export const validateNumber = function(number){
 const UserSchema = new mongoose.Schema({
     userName: {
         type: String, 
+      
         required:true,
          trim:true,
         minlength: [2, "fullName must be at least 2 characters"],
@@ -63,7 +64,10 @@ const UserSchema = new mongoose.Schema({
     ]
      
 }, {versionKey: false })
-
+UserSchema.pre('save', function(next){
+    this.userName = capitalize(this.userName)
+    next()
+})
 UserSchema.pre('updateOne', function(next){
     this.setOptions({runValidators:true})
     next()

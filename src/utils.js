@@ -6,8 +6,8 @@ export function capitalize(string){
 export function createDate(){
     let date = new Date()
   let DATE = {};
-  DATE.day = `${date.getDate()}/${date.getMonth()}/${date.getFullYear()}`
-  DATE.time = `${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`
+  DATE.day = date.toLocaleDateString()
+  DATE.time = date.toLocaleTimeString()
   return DATE
   
 }

@@ -118,7 +118,7 @@ router.route('/join').post(async(req,res)=>{
 
 router.route('/leave').post(async(req,res)=>{
     try {
-        const session = await conn.startSession()
+        const session = await conn.startSession
         console.log(`body:`, req.body)
         const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {accessToken,userEmail,channelName}
@@ -130,23 +130,23 @@ router.route('/leave').post(async(req,res)=>{
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser )
-        { 
-            throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
-        }  
-        let channel = await Channel.findOne({channelName});
-        if(!channel){
-            throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
-
-        }
-        channel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{});
-        if(!channel) 
-        {
-            throwErr({name:Errors.NOT_A_MEMBER,code: 400})
-        }
-
-        return await session.withTransaction(async()=>{
+        
+        return await conn.transaction(async(session)=>{
+            let LoggedUser = await User.findOne({email:userEmail}).session(session);
+            if(!LoggedUser )
+            { 
+                throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
+            }  
+            let channel = await Channel.findOne({channelName}).session(session);
+            if(!channel){
+                throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
+    
+            }
+            channel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{}).session(session);
+            if(!channel) 
+            {
+                throwErr({name:Errors.NOT_A_MEMBER,code: 400})
+            }
 
         
             console.log(`LoggedUser:`, LoggedUser)
@@ -168,6 +168,7 @@ router.route('/leave').post(async(req,res)=>{
 
             // filter channel and check whether it includes a role that is higher than Member.
             let isThereAdmins = updatedChannel.members.some(member=> member.roles.some(role=> role.name === 'Admin' || role.name === 'Creator') === true) 
+            console.log(`CHANNEL : `, updatedChannel)
             console.log(`isthereadmins:`, isThereAdmins)
             let PopulatedChannel = await populateCollection(updatedChannel, 'Channel')
             //if there are no admins give someone an Admin Role
@@ -190,8 +191,6 @@ router.route('/leave').post(async(req,res)=>{
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
            
-            await session.commitTransaction()
-            session.endSession()
             return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser?.userName, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
         })
     } catch (error) {

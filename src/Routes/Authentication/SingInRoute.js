@@ -8,11 +8,9 @@ import bcrypt from 'bcrypt'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 import {User,Login} from '../../MongoDb/index.js'
 
-import { handleGithubSingin } from './githubAuthRoute.js'
 import jwt from 'jsonwebtoken'
-import { handleUserData } from './getUserData.js'
 
-import { Errors } from '../../utils.js'
+import { Errors, throwErr } from '../../utils.js'
 dotenv.config();
  
 
@@ -28,23 +26,27 @@ router.route('/').post(async(req,res)=>{
         //     return handleUserData(accessToken,loggedThrough, res)
         // } 
         // // }
-        if(!email || !password) return res.status(400).send({success:false, message:`INCORRECT_FORM_SUBMISSION`})
+        if(!email || !password)
+        {
+            throwErr({name:`INCORRECT_FORM_SUBMISSION` ,code:400})
+        } 
         const USER_LOGIN = await Login.findOne({email: email})
 
-        if(!USER_LOGIN)return res.status(404).send({success:false,message:Errors.NOT_FOUND})
+        if(!USER_LOGIN)throwErr({name:Errors.NOT_SIGNED_UP,code:404})
         console.log(`LoggedThrough: ${loggedThrough}`);
         if( USER_LOGIN?.loggedThrough !== loggedThrough && !USER_LOGIN?.password ) {
             console.log('1')
-            return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY , loggedThrough: USER_LOGIN?.loggedThrough})
+            throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,arguments:{loggedThrough: USER_LOGIN?.loggedThrough} })
         }
         
         if(USER_LOGIN && USER_LOGIN?.password) {
             console.log(USER_LOGIN)
             const isValid = bcrypt.compareSync(password, USER_LOGIN.password)
             if(!isValid){
-                return res.status(400).send({success:false, message:Errors.WRONG_PASSWORD});
+                throwErr({name:Errors.WRONG_PASSWORD, code:400})
             } 
             let USER = await User.findOne({email: email});
+            
             let user = {
                 userName: USER.userName,
                  email: USER.email,
