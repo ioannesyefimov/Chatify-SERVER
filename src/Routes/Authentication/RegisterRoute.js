@@ -48,7 +48,7 @@ router.route('/').post(async(req,res)=>{
         }
         const isLoggedAlready = await Login.findOne({email: email});
         if(isLoggedAlready !== null){
-            return isLoggedAlready?.loggedThrough !== 'Internal' ? 
+            return isLoggedAlready?.loggedThrough !== 'INTERNAL' ? 
              res.status(400).send({
                 success:false, message: Errors.SIGNED_UP_DIFFERENTLY, 
                 loggedThrough: isLoggedAlready?.loggedThrough
@@ -59,7 +59,7 @@ router.route('/').post(async(req,res)=>{
             })
         }
         console.log('working')
-       return await session.withTransaction(async()=>{
+       return await conn.transaction(async(session)=>{
             let user = {
                 email: email,
                 userName: userName,
@@ -93,12 +93,8 @@ router.route('/').post(async(req,res)=>{
             ], {session});
             
             
-            console.log(`success`)
-       
-
+            console.log(`register was successful`)
     
-            await session.commitTransaction(); 
-            session.endSession()
             res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: loggedThrough}});
         })
     

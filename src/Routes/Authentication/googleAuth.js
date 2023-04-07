@@ -1,7 +1,7 @@
 import express from 'express'
 import * as dotenv from "dotenv"
 import  verifyGoogleToken  from './SocialAuth/googleAuth.js'
-import { checkError, Errors} from '../../utils.js'
+import { checkError, Errors, throwErr} from '../../utils.js'
 
 import jwt from 'jsonwebtoken'
 // import User from '../../MongoDb/models/user.js'
@@ -62,6 +62,80 @@ export const handleGoogleSingin = async(credentials, res) =>{
         return checkError(error,res)
     }
 }
+
+router.route('/').post(async(req,res)=>{
+    
+    try {
+        const session = conn.startSession()
+        console.log(`google signin is working`)
+        if(!req.body.credential) return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
+        
+            // console.log(req.body.credential)
+            const verificationResponse = await verifyGoogleToken(req.body.credential)
+            if(verificationResponse.error) {
+                throwErr(verificationResponse?.error)
+                // return res.status(400).json({message: verificationResponse.error})
+            };
+
+            const profile = await verificationResponse?.payload;
+            console.log(profile.email)
+            await conn.transaction(async(session)=>{
+                
+                const dbUser = await User.findOne({email:profile?.email}).session(session);
+                const dbLogin = await Login.findOne({email:profile?.email}).session(session);
+                if(dbLogin && dbUser?.loggedThrough !=='Google'){
+                    throwErr({name:SIGNED_UP_DIFFERENTLY,code:400,arguments:{email:dbLogin?.email, loggedThrough:dbLogin?.loggedThrough}})
+                }
+                // console.log(existsI nDb)
+        
+                if(!dbUser && !dbLogin){
+                   let user = {
+
+                        userName: `${profile?.given_name} ${profile?.family_name}`,
+                        picture: profile?.picture,
+                        email: profile?.email,
+                        bio: profile?.bio,
+                        phone: profile?.phone,
+                        loggedThrough: 'Google'
+                       
+                    };
+                    dbUser = await User.create([{user}], {session});
+
+                
+                }
+                let user = {
+    
+                    userName: dbUser?.userName,
+                    picture: dbUser?.picture,
+                    email: dbUser?.email,
+                    bio: dbUser?.bio,
+                    phone: dbUser?.phone,
+                    loggedThrough: dbUser?.loggedThrough
+                   
+                }
+                console.log(dbUser);
+                console.log(req.body.loggedThrough);
+                // if(dbUser?.loggedThrough !== req.body.loggedThrough){
+                //     return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: dbUser?.loggedThrough})
+                // }
+            
+    
+                res.status(201).send({
+                    success:true,
+                     data:{
+                        loggedThrough: 'Google',
+                        // user: user,
+                        accessToken: generateAccessToken({email:user?.email})
+                    }
+                });
+            })
+    
+        
+    } catch (error) {
+        return checkError(error,res)
+    }
+})
+
 
 router.route('/signin').post(async(req,res)=>{
     

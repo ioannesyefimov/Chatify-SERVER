@@ -161,7 +161,7 @@ router.route('/leave').post(async(req,res)=>{
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
                 return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-                .then(channel=>res.status(200).send({success:true,data: `CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}))
+                .then(channel=>res.status(200).send({success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}}))
                 .catch(err=>throwErr(err)) 
             }
         

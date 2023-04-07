@@ -19,7 +19,7 @@ const MessageSchema = new mongoose.Schema({
         type: mongoose.Schema.ObjectId,
         ref: 'Channel',
         required:true,
-    }]    ,
+    }],
 
 }, {versionKey: false })
 
@@ -30,6 +30,8 @@ MessageSchema.set('toJSON', {
         delete result._id
     }
 })
+
+
 const Message= mongoose.model('Message', MessageSchema)
 
 

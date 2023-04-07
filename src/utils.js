@@ -4,7 +4,7 @@ export function capitalize(string){
 }
 
 export function createDate(){
-    let date = new Date()
+  let date = new Date()
   let DATE = {};
   DATE.day = date.toLocaleDateString()
   DATE.time = date.toLocaleTimeString()
@@ -196,9 +196,9 @@ export function checkError(error,res){
       console.log(`error: `, error)
       console.log(`errors: `, errors)
       if(Object.keys(errors).length === 0){
-        return res.status(400).send({succes:false,message:error})
+        return res.status(400).send({success:false,message:error})
       }
-      return res.status(400).send({succes:false,message:errors})
+      return res.status(400).send({success:false,message:errors})
 
     }
     return res.status(500).send({succes:false,message: error})
