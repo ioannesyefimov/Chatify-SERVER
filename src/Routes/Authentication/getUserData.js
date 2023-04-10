@@ -27,22 +27,24 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
                 if(isValidToken?.result?.email){
                     const USER = await User.findOne({email: isValidToken?.result.email})
                     if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+                    let populatedUser = await populateCollection(USER,'User')
     
                     if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
                     const user = {
-                        userName: USER?.userName  ,
-                        email: USER.email,
-                        picture: USER?.picture || null,
-                        bio: USER?.bio || null,
-                        phone: USER?.phone || null,
-                        loggedThrough: USER?.loggedThrough
+                        userName: populatedUser?.userName  ,
+                        email: populatedUser.email,
+                        picture: populatedUser?.picture || null,
+                        bio: populatedUser?.bio || null,
+                        phone: populatedUser?.phone || null,
+                        loggedThrough: populatedUser?.loggedThrough,
+                        channels: populatedUser.channels ?? []
                     }
-                    console.log(user)
+                    console.log(populatedUser)
     
                     const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
                     return res.status(200).send({
                         success:true,
-                        data: {user, loggedThrough: USER?.loggedThrough, accessToken: GeneratedAccessToken}
+                        data: {user, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
                     })
                 }
         }
@@ -77,6 +79,43 @@ router.route('/').post(async(req,res)=>{
             return res.status(200).send({
                 success:true,
                 data: {user, loggedThrough: isValidToken?.loggedThrough}
+            })
+        }
+    } catch (error) {
+        console.log(`error: `, error)
+         checkError(error,res)
+    }
+})
+
+
+router.route('/').get(async(req,res)=>{
+    try {
+    const {accessToken} =req.query       
+        if(accessToken){
+            const isValidToken = await verifyAccessToken(accessToken);
+            if(!isValidToken?.success) return res.status(400).send({success:false,message:isValidToken?.err})
+            console.log(accessToken)
+            console.log(isValidToken)
+            
+            const USER = await User.findOne({email: isValidToken?.result.email});
+
+            if(!USER ) {
+             throwErr({name:Errors.NOT_FOUND,code:404,arguments:{email:isValidToken?.result?.email}})
+            }
+            const user = {
+                userName: USER?.userName  ,
+                email: USER.email,
+                picture: USER?.picture ?? null,
+                bio: USER?.bio ?? null,
+                phone: USER?.phone ?? null,
+                channels: USER?.channels ?? [],
+                loggedThrough: USER?.loggedThrough
+            }
+            
+            console.log(user)
+            return res.status(200).send({
+                success:true,
+                data: {user, loggedThrough: user?.loggedThrough}
             })
         }
     } catch (error) {

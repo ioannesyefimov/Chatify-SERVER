@@ -8,11 +8,16 @@ const ChannelSchema = new mongoose.Schema({
         required:true,
         unique: true
     },
+    channelAvatar: {
+        type:String,
+        trim:true
+    },
     messages:[{
         default: [],
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Message'
     }],
+    channelDiscription:{type:String,trim:true,},
     members: [
         {
             member: {

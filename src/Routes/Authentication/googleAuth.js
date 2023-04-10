@@ -66,25 +66,28 @@ export const handleGoogleSingin = async(credentials, res) =>{
 router.route('/').post(async(req,res)=>{
     
     try {
-        const session = conn.startSession()
+        const {credential} = req.body
+        const session = await conn.startSession(); 
         console.log(`google signin is working`)
-        if(!req.body.credential) return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
+        if(!credential){
+            throwErr({name:Errors.MISSING_ARGUMENTS, code:400, arguments:`google credentials is missing `})
+        } 
         
             // console.log(req.body.credential)
-            const verificationResponse = await verifyGoogleToken(req.body.credential)
-            if(verificationResponse.error) {
+            const verificationResponse = await verifyGoogleToken(req.body.credential);
+            if(verificationResponse?.error) {
                 throwErr(verificationResponse?.error)
-                // return res.status(400).json({message: verificationResponse.error})
             };
 
             const profile = await verificationResponse?.payload;
+            console.log(`profile: `, profile);
             console.log(profile.email)
             await conn.transaction(async(session)=>{
                 
                 const dbUser = await User.findOne({email:profile?.email}).session(session);
                 const dbLogin = await Login.findOne({email:profile?.email}).session(session);
                 if(dbLogin && dbUser?.loggedThrough !=='Google'){
-                    throwErr({name:SIGNED_UP_DIFFERENTLY,code:400,arguments:{email:dbLogin?.email, loggedThrough:dbLogin?.loggedThrough}})
+                    throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,code:400,arguments:{email:dbLogin?.email, loggedThrough:dbLogin?.loggedThrough}})
                 }
                 // console.log(existsI nDb)
         
@@ -96,12 +99,14 @@ router.route('/').post(async(req,res)=>{
                         email: profile?.email,
                         bio: profile?.bio,
                         phone: profile?.phone,
-                        loggedThrough: 'Google'
+                        loggedThrough: 'Google',
+                        channels:[]
                        
                     };
-                    dbUser = await User.create([{user}], {session});
-
-                
+                    console.log(`user:`, user)
+                    dbUser = await User.create([
+                        user
+                    ],{session})
                 }
                 let user = {
     
@@ -110,8 +115,8 @@ router.route('/').post(async(req,res)=>{
                     email: dbUser?.email,
                     bio: dbUser?.bio,
                     phone: dbUser?.phone,
-                    loggedThrough: dbUser?.loggedThrough
-                   
+                    loggedThrough: dbUser?.loggedThrough,
+                    channels: dbUser?.channels
                 }
                 console.log(dbUser);
                 console.log(req.body.loggedThrough);

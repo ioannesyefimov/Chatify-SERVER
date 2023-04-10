@@ -20,7 +20,7 @@ export const handleUploadPicture = async(image)=>{
     
        return {success:true,url: uploadImage.data?.url}
     } catch (error) {
-        return {success:false,message:error |`SOMETHING WENT WRONG`}
+        return {success:false,message:error ?? `SOMETHING WENT WRONG`}
 
     }
 }

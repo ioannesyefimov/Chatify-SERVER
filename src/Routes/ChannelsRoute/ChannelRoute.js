@@ -3,6 +3,7 @@ import * as dotenv from 'dotenv';
 import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
 import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
 import jwt from 'jsonwebtoken'
+import { handleUploadPicture } from '../uploadRoute/uploadRoute.js';
 
 
 dotenv.config()
@@ -12,18 +13,18 @@ const router = express.Router()
 router.route('/create').post(async(req,res) =>{
     try{
         const session = await conn.startSession()
-        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {channelName,userEmail,accessToken}
+        const {accessToken,channelDiscription, channelName,channelAvatar} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,accessToken}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        const  isValidToken = await verifyAccessToken(accessToken) 
+        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:userEmail});
+        let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
         if(!LoggedUser ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 
@@ -34,11 +35,25 @@ router.route('/create').post(async(req,res) =>{
 
         return await session.withTransaction(async()=>{
 
+
             console.log(`ISCREATED: `,isCreated)
             const newChannel =  new Channel({
                 channelName
             },{session});
+
+            if(channelAvatar){
+                let uploadPicture = await handleUploadPicture(channelAvatar);
+                if(!uploadPicture?.success) throwErr(uploadPicture.message)
+                newChannel.channelAvatar = uploadPicture?.url
+                await newChannel.save({session})
+            }
     
+            if(channelDiscription){
+                newChannel.channelDiscription = channelDiscription
+                await newChannel.save({session})
+
+
+            }
             console.log(`newchannel:`, newChannel)
             if(!newChannel){
                 throwErr(newChannel)
@@ -69,18 +84,18 @@ router.route('/create').post(async(req,res) =>{
 router.route('/join').post(async(req,res)=>{
     try {
         const session = await conn.startSession()
-        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {channelName,userEmail,accessToken}
+        const {accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,accessToken}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        const  isValidToken = await verifyAccessToken(accessToken) 
+        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:userEmail});
+        let LoggedUser = await User.findOne({email:isValidToken?.result.email});
         if(!LoggedUser ) 
         {
             throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
@@ -120,19 +135,19 @@ router.route('/leave').post(async(req,res)=>{
     try {
         const session = await conn.startSession
         console.log(`body:`, req.body)
-        const {userEmail,accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {accessToken,userEmail,channelName}
+        const {accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {accessToken,channelName}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        const  isValidToken = await verifyAccessToken(accessToken) 
+        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         
         return await conn.transaction(async(session)=>{
-            let LoggedUser = await User.findOne({email:userEmail}).session(session);
+            let LoggedUser = await User.findOne({email:isValidToken?.result.email}).session(session);
             if(!LoggedUser )
             { 
                 throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
@@ -204,14 +219,18 @@ router.route('/delete').delete(async(req,res)=>{
     
     try {
         const session = await conn.startSession()
-        const {accessToken, channelName, userEmail} = req.query
-        let ARGUMENTS = {accessToken,channelName,userEmail}
+        const {accessToken, channelName, } = req.query
+        let ARGUMENTS = {accessToken,channelName,}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-        let LoggedUser = await User.findOne({email:userEmail});
+        const  isValidToken = await verifyAccessToken(accessToken) 
+        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+
+        
+        let LoggedUser = await User.findOne({email:isValidToken?.result.email});
         if(!LoggedUser ) {
             throwErr({name:Errors.NOT_FOUND, code:404})
         }
@@ -230,7 +249,7 @@ router.route('/delete').delete(async(req,res)=>{
         
          
         // find users' roles in a chat and if they have role "Admin" delete channel
-        let isAdmin = PopulatedChannel.members?.find(member => member.member?.email === userEmail)
+        let isAdmin = PopulatedChannel.members?.find(member => member.member?.email === LoggedUser?.email)
         console.log(`isAdmin: `, isAdmin)
         isAdmin = isAdmin?.roles?.some((role)=> 
         {console.log(role);return role.name === 'Admin'|| role.name === 'Creator'}
