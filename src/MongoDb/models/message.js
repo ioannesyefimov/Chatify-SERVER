@@ -13,7 +13,7 @@ const MessageSchema = new mongoose.Schema({
     },
     createdAt: {
         type:Object,
-        default: createDate(),
+        default: createDate()
     },
     channelAt: [{
         type: mongoose.Schema.ObjectId,

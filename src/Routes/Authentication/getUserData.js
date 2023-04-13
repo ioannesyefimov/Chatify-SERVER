@@ -62,7 +62,7 @@ router.route('/').post(async(req,res)=>{
             const isValidToken = await verifyAccessToken(accessToken);
             if(!isValidToken?.success) return res.status(400).send({success:false,message:isValidToken?.err})
             console.log(accessToken)
-            console.log(isValidToken)
+            console.log(`email: `, isValidToken?.result)
             
             const USER = await User.findOne({email: isValidToken?.result.email});
             if(!USER )return res.status(404).send({success:false,message:`NOT_FOUND`})

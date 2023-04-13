@@ -22,7 +22,6 @@ const ChannelSchema = new mongoose.Schema({
         {
             member: {
                 type: mongoose.Schema.Types.ObjectId,
-                unique:true,
                 ref: 'User',  
             },
             roles: [

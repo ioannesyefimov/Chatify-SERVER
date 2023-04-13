@@ -325,6 +325,7 @@ router.route('/userChannels').get(async(req,res) =>{
 router.route('/channel/:channelName').get(async(req,res) =>{
     try {
         const {channelName} = req?.params // Bearer ACCESSTOKEN
+        const {userEmail} = req.query
         console.log(req.params)
         if(!channelName){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
@@ -332,8 +333,12 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-      
+        let isLogged = await User.findOne({userEmail});
         let channels = await Channel.find({channelName});
+        if(isLogged) {
+            
+            channels = await Channel.find({channelName, "members.member":isLogged._id })
+        }
         console.log(`channels: `, channels)
         if(channels.length === 0){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})

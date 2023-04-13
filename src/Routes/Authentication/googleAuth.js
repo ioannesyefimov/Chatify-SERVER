@@ -75,17 +75,17 @@ router.route('/').post(async(req,res)=>{
         
             // console.log(req.body.credential)
             const verificationResponse = await verifyGoogleToken(req.body.credential);
-            if(verificationResponse?.error) {
-                throwErr(verificationResponse?.error)
+            if(verificationResponse?.err) {
+                throwErr(verificationResponse?.err)
             };
 
             const profile = await verificationResponse?.payload;
             console.log(`profile: `, profile);
-            console.log(profile.email)
+            console.log(profile?.email)
             await conn.transaction(async(session)=>{
                 
-                const dbUser = await User.findOne({email:profile?.email}).session(session);
-                const dbLogin = await Login.findOne({email:profile?.email}).session(session);
+                let dbUser = await User.findOne({email:profile?.email}).session(session);
+                let dbLogin = await Login.findOne({email:profile?.email}).session(session);
                 if(dbLogin && dbUser?.loggedThrough !=='Google'){
                     throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,code:400,arguments:{email:dbLogin?.email, loggedThrough:dbLogin?.loggedThrough}})
                 }
