@@ -276,7 +276,7 @@ router.route('/delete').delete(async(req,res)=>{
                 console.log(`deletedChannel: ` ,deletedChannel)
                 await session.commitTransaction()
                 session.endSession()
-                return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`}})
+                return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}})
             
         })        
 
@@ -321,22 +321,15 @@ router.route('/userChannels').get(async(req,res) =>{
 
 )
 
-
-router.route('/channel/:channelName').get(async(req,res) =>{
+export const getChannel =async(channelName,userEmail)=>{
     try {
-        const {channelName} = req?.params // Bearer ACCESSTOKEN
-        const {userEmail} = req.query
-        console.log(req.params)
         if(!channelName){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
-        // const  isValidToken = await verifyAccessToken(accessToken) 
-        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let isLogged = await User.findOne({userEmail});
         let channels = await Channel.find({channelName});
         if(isLogged) {
-            
             channels = await Channel.find({channelName, "members.member":isLogged._id })
         }
         console.log(`channels: `, channels)
@@ -346,19 +339,26 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+            return {success:true,data:{channels: PopulatedChannels}}
         }
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
-        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
-
+        return {success:true,data:{channels: PopulatedChannels}}
     } catch (error) {
-         checkError(error,res)
+        //  checkError(error,res)
+         return {success:false,message:error}
     }
 }
 
-
+router.route('/channel/:channelName').get(async(req,res) =>{
+    console.log(req.query);
+   let resp = await getChannel(req.params.channelName,req.params.userEmail);
+   if(!resp.success){
+    return res.status(400).send(resp)
+   }
+   return res.status(200).send(resp)
+}
 )
 router.route('/').get(async(req,res) =>{
     try {

@@ -8,7 +8,11 @@ import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, Re
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
 import { getUser } from './src/Routes/Authentication/getUserData.js'
+import { Server } from 'socket.io'
+import http from 'http'
+
 const app = express();
+
 
 Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
 User.watch().on('change', data=>console.log(`USER CHANGE : ` ,data))
@@ -21,6 +25,19 @@ app.use(
 
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
+
+export const server = http.createServer(app)
+
+const io = new Server(server, {
+    cors: {
+        origin: 'https://localhost:5173',
+        methods: ['GET','POST','DELETE']
+    }
+})
+io.on('connection', (socket)=>{
+    console.log(`User connected ${socket.id}`)
+})
+
 
 app.route('/api/user/:userEmail').get(async(req,res)=>await getUser(req,res))
 
@@ -44,10 +61,11 @@ app.use('/api/messages', MessageRoute)
 app.use('/api/roles',RoleRoute)
 const PORT = process.env.PORT || 5050
 
+
 const StartServer = async ()=>{
     try {
         connectDB(process.env.MONGODB_URL);
-        app.listen(PORT, () => console.log(`Server is running on port ${PORT} `))
+        server.listen(PORT, () => console.log(`Server is running on port ${PORT} `))
 
     } catch (error) {
         console.log(error)
