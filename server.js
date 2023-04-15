@@ -1,42 +1,19 @@
-import express from 'express'
 import * as dotenv from 'dotenv'
-import cors from 'cors'
+
 import {Login,User} from './src/MongoDb/models/index.js'
-dotenv.config()
 
 import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
 import { getUser } from './src/Routes/Authentication/getUserData.js'
-import { Server } from 'socket.io'
-import http from 'http'
+import { server,app} from './src/socket-io/index.js'
 
-const app = express();
+dotenv.config()
 
 
 Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
 User.watch().on('change', data=>console.log(`USER CHANGE : ` ,data))
 Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
-
-app.use(
-    cors()
-)
-// app.use(bodyParser.json())
-
-app.use(express.json({limit: '50mb'}));
-app.use(express.urlencoded({limit: '50mb'}));
-
-export const server = http.createServer(app)
-
-const io = new Server(server, {
-    cors: {
-        origin: 'https://localhost:5173',
-        methods: ['GET','POST','DELETE']
-    }
-})
-io.on('connection', (socket)=>{
-    console.log(`User connected ${socket.id}`)
-})
 
 
 app.route('/api/user/:userEmail').get(async(req,res)=>await getUser(req,res))

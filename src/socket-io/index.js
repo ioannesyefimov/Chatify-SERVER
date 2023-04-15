@@ -1,10 +1,24 @@
-import io,{Socket} from 'socket.io'
-import { server } from '../../server'
-import { createDate, populateCollection } from '../utils'
-import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute'
-import { Channel } from '../MongoDb'
+import {Server} from 'socket.io'
+import http from 'http'
+import cors from 'cors'
+import express from 'express'
+import { createDate, populateCollection,Errors } from '../utils.js'
+import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
+import { Channel, Login, Message } from '../MongoDb/index.js'
+export const app = express();
 
-const io = new Server(server, {
+
+app.use(
+    cors()
+)
+
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb'}));
+
+
+export const server = http.createServer(app)
+
+export const io = new Server(server, {
     cors: {
         origin: 'https://localhost:5173',
         methods: ['GET','POST','DELETE']
@@ -12,7 +26,6 @@ const io = new Server(server, {
 })
 io.on('connection', (socket)=>{
     console.log(`User connected ${socket.id}`)
-    socket.emit('response', "hello from server")
 
     socket.on('join_channel',async data=>{
         socket.join(data)
@@ -22,22 +35,28 @@ io.on('connection', (socket)=>{
     socket.on('message',data=>{console.log(`DATA:`,data);})
 
     socket.on('get_channel',async(data)=>{
-        console.log(`GETTING CHANNEL`,data);
-        let channel = await Channel.findOne({channelName:data.channelName,"members.member":data.user._id});
+        console.log(`data:`,data);
+        let channel = await Channel.findOne({channelName:data.channelName,"members.member":data.user.id});
+        console.log(`CHANNEL:`, channel);
         if(!channel) {
-             socket.emit('get_channel_response', {success:false,message:Errors.NOT_FOUND})
+             return socket.emit('get_channel_response', {success:false,message:Errors.NOT_FOUND})
         }else {
             let populatedChannel = await populateCollection(channel,'Channel');
-            socket.emit('get_channel_response',{channel:populatedChannel})
+            return socket.emit('get_channel_response',{channel:populatedChannel})
             
         }
     })
 
-    socket.on('send_message',(data)=>{
+    socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
-        socket.to(data.room).emit('receive_message',data)
+        if(!data.channel) return
+        let channel = await Channel.findOne({_id:data.channel})
+        socket.to(data.room).emit('receive_message',{channel:channel})
     });
     socket.on('delete_message',(data)=>{
 
+    })
+    socket.on('disconnect',()=>{
+        console.log(`Client ${socket.id} disconnected`);
     })
 })

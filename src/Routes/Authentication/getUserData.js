@@ -37,7 +37,8 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
                         bio: populatedUser?.bio || null,
                         phone: populatedUser?.phone || null,
                         loggedThrough: populatedUser?.loggedThrough,
-                        channels: populatedUser.channels ?? []
+                        channels: populatedUser.channels ?? [],
+                        id:populatedUser._id
                     }
                     console.log(populatedUser)
     
@@ -72,7 +73,8 @@ router.route('/').post(async(req,res)=>{
                 picture: USER?.picture || null,
                 bio: USER?.bio || null,
                 phone: USER?.phone || null,
-                loggedThrough: USER?.loggedThrough
+                loggedThrough: USER?.loggedThrough,
+                id: USER?._id
             }
             
             console.log(user)

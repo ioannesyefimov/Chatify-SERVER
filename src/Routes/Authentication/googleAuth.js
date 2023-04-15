@@ -103,7 +103,6 @@ router.route('/').post(async(req,res)=>{
                         channels:[]
                        
                     };
-                    console.log(`user:`, user)
                     dbUser = await User.create([
                         user
                     ],{session})
@@ -118,8 +117,6 @@ router.route('/').post(async(req,res)=>{
                     loggedThrough: dbUser?.loggedThrough,
                     channels: dbUser?.channels
                 }
-                console.log(dbUser);
-                console.log(req.body.loggedThrough);
                 // if(dbUser?.loggedThrough !== req.body.loggedThrough){
                 //     return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: dbUser?.loggedThrough})
                 // }
