@@ -2,7 +2,7 @@ import {Server} from 'socket.io'
 import http from 'http'
 import cors from 'cors'
 import express from 'express'
-import { createDate, populateCollection,Errors } from '../utils.js'
+import { createDate, populateCollection,Errors, APIFetch } from '../utils.js'
 import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
 import { Channel, Login, Message } from '../MongoDb/index.js'
 export const app = express();
@@ -25,6 +25,7 @@ export const io = new Server(server, {
     }
 })
 io.on('connection', (socket)=>{
+    let serverURL='http://localhost:5050/api'
     console.log(`User connected ${socket.id}`)
 
     socket.on('join_channel',async data=>{
@@ -36,22 +37,32 @@ io.on('connection', (socket)=>{
 
     socket.on('get_channel',async(data)=>{
         console.log(`data:`,data);
-        let channel = await Channel.findOne({channelName:data.channelName,"members.member":data.user.id});
-        console.log(`CHANNEL:`, channel);
-        if(!channel) {
-             return socket.emit('get_channel_response', {success:false,message:Errors.NOT_FOUND})
+       let response = await APIFetch({url:`http://localhost:5050/api/channels/channel/${data.channelName}`});
+        if(!response.success) {
+             return socket.emit('get_channel', response)
         }else {
-            let populatedChannel = await populateCollection(channel,'Channel');
-            return socket.emit('get_channel_response',{channel:populatedChannel})
+            return socket.emit('get_channel',{data:{channel:response?.data.channels}})
             
         }
     })
 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
-        if(!data.channel) return
-        let channel = await Channel.findOne({_id:data.channel})
-        socket.to(data.room).emit('receive_message',{channel:channel})
+        if(!data?.user) return
+        console.log(`ROOM:`, data.room);
+        let response = await APIFetch({
+            url:`${serverURL}/messages/create`,
+            method:'POST',
+            body:{
+                userEmail:data?.user.email, channelId:data?.channelId, message: data?.message
+            },
+        }); 
+
+        if(!response?.success){
+            return socket.emit('receveive_message', response)
+        }
+
+        socket.to(data.room).emit('receive_message',{data:{channel:response?.data.channel}})
     });
     socket.on('delete_message',(data)=>{
 

@@ -1,7 +1,7 @@
 import express from 'express';
 import * as dotenv from 'dotenv';
 import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
-import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken } from '../../utils.js';
+import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken, containsEncodedComponents } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { handleUploadPicture } from '../uploadRoute/uploadRoute.js';
 
@@ -326,6 +326,11 @@ export const getChannel =async(channelName,userEmail)=>{
         if(!channelName){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
+     let isEncoded = containsEncodedComponents(channelName)
+     if(isEncoded){
+        channelName  = decodeURIComponent(channelName)
+     }
+
 
         let isLogged = await User.findOne({userEmail});
         let channels = await Channel.find({channelName});
@@ -352,12 +357,36 @@ export const getChannel =async(channelName,userEmail)=>{
 }
 
 router.route('/channel/:channelName').get(async(req,res) =>{
-    console.log(req.query);
-   let resp = await getChannel(req.params.channelName,req.params.userEmail);
-   if(!resp.success){
-    return res.status(400).send(resp)
-   }
-   return res.status(200).send(resp)
+    try {
+        let {channelName} = req.params
+        let {userEmail} = req.query
+        if(!channelName){
+            throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
+        }
+
+
+        let isLogged = await User.findOne({userEmail});
+        let channels = await Channel.find({channelName});
+        if(isLogged) {
+            channels = await Channel.find({channelName, "members.member":isLogged._id })
+        }
+        console.log(`channels: `, channels)
+        if(channels.length === 0){
+             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
+        }
+        if(channels.length > 1){
+            // loop through every channel that user is member of and then send it 
+            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
+            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        }
+       
+        let PopulatedChannels = await populateCollection(channels[0], 'Channel');
+       console.log(`PopulatedChannels,` , PopulatedChannels)
+        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+    } catch (error) {
+        //  checkError(error,res)
+         return res.status(400).send({success:false,message:error})
+    }
 }
 )
 router.route('/').get(async(req,res) =>{

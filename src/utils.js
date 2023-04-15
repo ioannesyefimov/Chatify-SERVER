@@ -213,6 +213,38 @@ export function checkError(error,res){
 
   
 }
+export function containsEncodedComponents(x) {
+  // ie ?,=,&,/ etc
+  return (decodeURI(x) !== decodeURIComponent(x));
+}
+ 
+export  const APIFetch = async({url,
+  method='get',
+ headers={
+  "Content-Type": "application/json",
+}, 
+body,
+signal}) => {
+  console.log(`headers: `, headers);
+  console.log(`body: `, body);
+  console.log(`url: `, url)
+ return !method?.toLowerCase().includes('get')   ? (
+  await fetch(url, {
+    method: method,
+    signal,
+    headers,
+    body: JSON.stringify(body)
+  }).then(response=>response?.json())
+ ) : (
+  
+  await fetch(url, {
+    method: method,
+    headers,
+    signal  ,
+  }).then(response=>response?.json())
+ )
+}
+
 export function validatePassword(password, name){
     // check whether password doesn't contains at least 
     // 1 uppercase, 1 lowercase, 1 number, and 1 special character. 

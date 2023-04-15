@@ -10,12 +10,10 @@ import { Errors, checkError } from "../../utils.js"
 dotenv.config()
 const router = express.Router()
 
-
-
 router.route('/create').post(async(req,res) =>{
     
     try {
-        const {userEmail,accessToken,channelName,message} = req.body  // Bearer ACCESSTOKEN
+        const {userEmail,accessToken,channelId,message} = req.body  // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
@@ -23,11 +21,11 @@ router.route('/create').post(async(req,res) =>{
         if(!LoggedUser ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 
-        let isCreated = await Channel.findOne({channelName});
+        let isCreated = await Channel.findOne({_id:channelId});
         if(!isCreated) {
             throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
         }
-        isCreated = await Channel.findOne({channelName,"members.member": LoggedUser._id});
+        isCreated = await Channel.findOne({channelId,"members.member": LoggedUser._id});
         if(!isCreated){
             throwErr({name: Errors.NOT_A_MEMBER, code:404})
         }
