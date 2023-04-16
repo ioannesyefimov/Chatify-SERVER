@@ -62,9 +62,14 @@ io.on('connection', (socket)=>{
             return socket.emit('receveive_message', response)
         }
 
-        socket.to(data.room).emit('receive_message',{data:{channel:response?.data.channel}})
+        io.sockets.in(data.room).emit('receive_message',{data:{channel:response?.data.channel}})
     });
-    socket.on('delete_message',(data)=>{
+    socket.on('delete_message',async(data)=>{
+        console.log(`DATA:`, data);
+        if(data.message_id){
+            let response = await APIFetch({url:`${serverURL}/messages/delete?message_id=${data.message_id}&userEmail=${data.userEmail}&channel_id=${data.channel_id}`, method:'DELETE' })
+            return io.sockets.in(data.channel_id).emit("delete_message",response)
+        }
 
     })
     socket.on('disconnect',()=>{

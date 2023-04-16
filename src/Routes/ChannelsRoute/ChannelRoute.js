@@ -311,7 +311,7 @@ router.route('/userChannels').get(async(req,res) =>{
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{user:PopulatedUser?.userName,channels: PopulatedChannels}})
+        return res.status(200).send({success:true,data:{user:PopulatedUser,channels: PopulatedChannels}})
 
     } catch (error) {
          checkError(error,res)

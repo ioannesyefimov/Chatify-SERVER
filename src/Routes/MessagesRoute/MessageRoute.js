@@ -64,11 +64,11 @@ router.route('/create').post(async(req,res) =>{
 router.route('/delete').delete(async(req,res)=>{
 
     try {
-        const {userEmail,accessToken,channelName,_id,timeStamp} = req.query
+        const {userEmail,accessToken,channel_id,message_id,timeStamp} = req.query
         // const  isValidToken = await verifyAccessToken(accessToken) 
         let messageDate
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-        let ARGUMENTS = {channelName,userEmail,_id}
+        let ARGUMENTS = {channel_id,userEmail,message_id}
         console.log(`reqQuery:`, req.query)
         if(timeStamp){
             messageDate = JSON?.parse(timeStamp.replaceAll('/', '.'))
@@ -85,15 +85,15 @@ router.route('/delete').delete(async(req,res)=>{
             {
                 throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
             }
-            let msg = await Message.findOne({_id,user:LoggedUser._id}).session(session);
-            if(!msg){
-                throwErr({name:Errors.NOT_FOUND,code:400, arguments: {_id, by: LoggedUser?.userName}})
-
-            }
-            let isMember = await Channel.findOne({channelName, "members.member": LoggedUser._id}).session(session);
+            let msg = await Message.findOne({_id:message_id,user:LoggedUser._id}).session(session);
+            let isMember = await Channel.findOne({_id:channel_id, "members.member": LoggedUser._id}).session(session);
             console.log(isMember)
             if(!isMember){
                 throwErr({name:Errors.NOT_A_MEMBER,code:400})
+            }
+            if(!msg){
+                throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message_id, by: LoggedUser?.userName}})
+
             }
           
     
@@ -106,35 +106,16 @@ router.route('/delete').delete(async(req,res)=>{
                 // await Message.findOneAndDelete({message,user:LoggedUser._id,createdAt: messageDate}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
 
             // } else if (!messageDate){
-               let deleted=  await Message.findOneAndDelete({_id,user:LoggedUser._id}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
+               let deleted=  await Message.findOneAndDelete({_id:message_id,user:LoggedUser._id}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
 
             // }
             if(!msg && messageDate?.day){
-                throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message, by: LoggedUser?.userName, time: messageDate ?? messageDate}})
-
+                throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message_id, by: LoggedUser?.userName, time: messageDate ?? messageDate}})
             }
-        
-            // if(!messageInChat.length){
-            //     // let possibleMessages = await Message.find({'user': LoggedUser._id});
-            //     // console.log(`possibleMessages`, possibleMessages)
-            //     // if(possibleMessages.length > 1){
-            //     //     let result = [ ]
-            //     //     for(let msg of possibleMessages){
-            //     //         await populateCollection(msg,"Message").then(data=>result.push(data))
-
-            //     //     }
-            //     //     throwErr({name:Errors.NOT_FOUND,arguments: {userMessages:result,message, by: LoggedUser?.userName, time: messageDate ?? messageDate }})
-            //     // }
-            //     throwErr({name: Errors.NOT_FOUND, arguments: {message, by: LoggedUser?.userName, time: messageDate ?? messageDate }})
-            // }
-    
-            isMember.messages?.pull(_id)
+            isMember.messages?.pull(message_id)
             await isMember.save({session})
-
-      
             return res.status(200).send({success:true,data:{message:`"${deleted?.message}" has been deleted from "${isMember?.channelName}"`, channel: populatedChannel}})
         })
-
     } catch (error) {
          checkError(error,res)
     } 
@@ -234,7 +215,7 @@ router.route('/').get(async(req,res) =>{
         console.log(`MESSAGES:::`, populatedMessages)
         let filteredMessages = populatedMessages.messages?.filter(message=> message?.user?.equals(LoggedUser._id))
         console.log(populatedMessages)
-        return res.status(200).send({success:true,data:{user: PopulatedUser?.userName,messages:populatedMessages}})
+        return res.status(200).send({success:true,data:{user: PopulatedUser,messages:populatedMessages}})
 
     } catch (error) {
          checkError(error,res)
