@@ -7,6 +7,7 @@ import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
 import { Channel, Login, Message } from '../MongoDb/index.js'
 export const app = express();
 
+const baseUrl = `http://localhost:5050/api`
 
 app.use(
     cors()
@@ -25,25 +26,24 @@ export const io = new Server(server, {
     }
 })
 io.on('connection', (socket)=>{
-    let serverURL='http://localhost:5050/api'
     console.log(`User connected ${socket.id}`)
 
     socket.on('join_channel',async data=>{
         socket.join(data)
         console.log(`JOINED`, data);
     });
+    socket.on('leave_channel',async(data)=>{
+        socket.leave(data)
+        console.log(`USER ${data.user} left room "${data.id}"`);
+    })
 
-    socket.on('message',data=>{console.log(`DATA:`,data);})
 
     socket.on('get_channel',async(data)=>{
         console.log(`data:`,data);
-       let response = await APIFetch({url:`http://localhost:5050/api/channels/channel/${data.channelName}`});
-        if(!response.success) {
-             return socket.emit('get_channel', response)
-        }else {
-            return socket.emit('get_channel',{data:{channel:response?.data.channels}})
-            
-        }
+       let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
+       console.log(`RESPONSE:`, response);
+       console.log(`ID:`, socket.id);
+        io.sockets.to(socket.id).emit('get_channel', response)
     })
 
     socket.on('send_message', async(data)=>{
@@ -51,24 +51,22 @@ io.on('connection', (socket)=>{
         if(!data?.user) return
         console.log(`ROOM:`, data.room);
         let response = await APIFetch({
-            url:`${serverURL}/messages/create`,
+            url:`${baseUrl}/messages/create`,
             method:'POST',
             body:{
                 userEmail:data?.user.email, channelId:data?.channelId, message: data?.message
             },
         }); 
-
-        if(!response?.success){
-            return socket.emit('receveive_message', response)
+        if(!response.success){
+              return  io.sockets.in(data.room).emit('receive_message',response)
         }
-
-        io.sockets.in(data.room).emit('receive_message',{data:{channel:response?.data.channel}})
+        io.sockets.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages}})
     });
     socket.on('delete_message',async(data)=>{
         console.log(`DATA:`, data);
         if(data.message_id){
-            let response = await APIFetch({url:`${serverURL}/messages/delete?message_id=${data.message_id}&userEmail=${data.userEmail}&channel_id=${data.channel_id}`, method:'DELETE' })
-            return io.sockets.in(data.channel_id).emit("delete_message",response)
+            let response = await APIFetch({url:`${baseUrl}/messages/delete?message_id=${data.message_id}&userEmail=${data.userEmail}&channel_id=${data.channel_id}`, method:'DELETE' })
+            io.sockets.in(data.channel_id).emit("delete_message",response)
         }
 
     })

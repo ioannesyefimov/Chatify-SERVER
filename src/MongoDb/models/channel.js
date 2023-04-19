@@ -13,7 +13,6 @@ const ChannelSchema = new mongoose.Schema({
         trim:true
     },
     messages:[{
-        default: [],
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Message'
     }],

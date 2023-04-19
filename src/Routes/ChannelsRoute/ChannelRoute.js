@@ -84,23 +84,23 @@ router.route('/create').post(async(req,res) =>{
 router.route('/join').post(async(req,res)=>{
     try {
         const session = await conn.startSession()
-        const {accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {channelName,accessToken}
+        const {userEmail,channel_id} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {userEmail,channel_id}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        const  isValidToken = await verifyAccessToken(accessToken) 
-        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:isValidToken?.result.email});
+        let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ) 
         {
             throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
         }
-        const joiningChannel = await Channel.findOne({channelName});
+        const joiningChannel = await Channel.findOne({_id:channel_id});
         if(!joiningChannel){
             throwErr({name:Errors.CHANNEL_NOT_FOUND,code: 404})
         } 
@@ -131,33 +131,35 @@ router.route('/join').post(async(req,res)=>{
     }
 })
 
-router.route('/leave').post(async(req,res)=>{
+router.route('/leave').put(async(req,res)=>{
     try {
         const session = await conn.startSession
         console.log(`body:`, req.body)
-        const {accessToken,channelName} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {accessToken,channelName}
+        const {accessToken,userEmail,channel_id} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {userEmail,channel_id}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-        const  isValidToken = await verifyAccessToken(accessToken) 
-        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        // const  isValidToken = await verifyAccessToken(accessToken) 
+        // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         
         return await conn.transaction(async(session)=>{
-            let LoggedUser = await User.findOne({email:isValidToken?.result.email}).session(session);
+            let LoggedUser = await User.findOne({email:userEmail}).session(session);
             if(!LoggedUser )
             { 
                 throwErr({name: Errors.NOT_SIGNED_UP,code: 404})
             }  
-            let channel = await Channel.findOne({channelName}).session(session);
+            let channel = await Channel.findOne({_id:
+                channel_id}).session(session);
             if(!channel){
                 throwErr({name: Errors.CHANNEL_NOT_FOUND,code: 404})
     
             }
-            channel = await Channel.findOne({"members.member": LoggedUser?._id, channelName:channelName},{}).session(session);
+            channel = await Channel.findOne({"members.member": LoggedUser?._id, _id:channel_id
+            },{}).session(session);
             if(!channel) 
             {
                 throwErr({name:Errors.NOT_A_MEMBER,code: 400})
@@ -171,7 +173,6 @@ router.route('/leave').post(async(req,res)=>{
             await LoggedUser.channels.pull({channel: channel._id});
             await channel.save({session});
             await LoggedUser.save({session});
-            // let updatedChannel = await Channel.findOne({channelName});
             let updatedChannel = channel
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
@@ -206,7 +207,7 @@ router.route('/leave').post(async(req,res)=>{
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
            
-            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser?.userName, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
+            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
         })
     } catch (error) {
          checkError(error,res)
@@ -305,13 +306,13 @@ router.route('/userChannels').get(async(req,res) =>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{user: LoggedUser,channels: PopulatedChannels}})
+            return res.status(200).send({success:true,data:{user: LoggedUser,channels: [PopulatedChannels]}})
         }
         let PopulatedUser = await populateCollection(LoggedUser,'User');
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{user:PopulatedUser,channels: PopulatedChannels}})
+        return res.status(200).send({success:true,data:{user:PopulatedUser,channels: [PopulatedChannels]}})
 
     } catch (error) {
          checkError(error,res)
@@ -321,21 +322,21 @@ router.route('/userChannels').get(async(req,res) =>{
 
 )
 
-export const getChannel =async(channelName,userEmail)=>{
+export const getChannel =async(channel_id,userEmail)=>{
     try {
-        if(!channelName){
+        if(!channel_id){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
-     let isEncoded = containsEncodedComponents(channelName)
+     let isEncoded = containsEncodedComponents(channel_id)
      if(isEncoded){
-        channelName  = decodeURIComponent(channelName)
+        channel_id  = decodeURIComponent(channel_id)
      }
 
 
         let isLogged = await User.findOne({userEmail});
-        let channels = await Channel.find({channelName});
+        let channels = await Channel.find({_id:channel_id});
         if(isLogged) {
-            channels = await Channel.find({channelName, "members.member":isLogged._id })
+            channels = await Channel.find({_id:channel_id, "members.member":isLogged._id })
         }
         console.log(`channels: `, channels)
         if(channels.length === 0){
@@ -360,27 +361,34 @@ router.route('/channel/:channelName').get(async(req,res) =>{
     try {
         let {channelName} = req.params
         let {userEmail} = req.query
+        console.log(`name:`, channelName);
+        console.log(`userEmail:`, userEmail);
         if(!channelName){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
 
 
         let isLogged = await User.findOne({userEmail});
-        let channels = await Channel.find({channelName});
-        if(isLogged) {
-            channels = await Channel.find({channelName, "members.member":isLogged._id })
-        }
-        console.log(`channels: `, channels)
-        if(channels.length === 0){
+        let channels = await Channel.findOne({channelName});
+        if(!channels){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
         }
-        if(channels.length > 1){
-            // loop through every channel that user is member of and then send it 
-            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        if(isLogged) {
+            channels = await Channel.findOne({channelName, "members.member":isLogged._id })
+            if(!channels){
+                throwErr({name: Errors.NOT_A_MEMBER,code:404})
+                
+            }
         }
+        console.log(`channels: `, channels)
+        console.log(`user: `, isLogged)
+        // if(channels.length > 1){
+        //     // loop through every channel that user is member of and then send it 
+        //     let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
+        //     return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        // }
        
-        let PopulatedChannels = await populateCollection(channels[0], 'Channel');
+        let PopulatedChannels = await populateCollection(channels, 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
         return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
     } catch (error) {
@@ -402,11 +410,11 @@ router.route('/').get(async(req,res) =>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+            return res.status(200).send({success:true,data:{channels: [PopulatedChannels]}})
         }
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
+        return res.status(200).send({success:true,data:{channels: [PopulatedChannels]}})
 
     } catch (error) {
          checkError(error,res)

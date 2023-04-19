@@ -5,7 +5,7 @@ import {Login,User} from './src/MongoDb/models/index.js'
 import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
-import { getUser } from './src/Routes/Authentication/getUserData.js'
+import { getUsers } from './src/Routes/Authentication/getUserData.js'
 import { server,app} from './src/socket-io/index.js'
 
 dotenv.config()
@@ -16,7 +16,7 @@ User.watch().on('change', data=>console.log(`USER CHANGE : ` ,data))
 Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 
 
-app.route('/api/user/:userEmail').get(async(req,res)=>await getUser(req,res))
+app.route('/api/user/:userEmail').get(async(req,res)=>await getUsers(req,res))
 
   
 
