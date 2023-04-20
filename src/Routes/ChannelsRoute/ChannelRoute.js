@@ -107,7 +107,7 @@ router.route('/join').post(async(req,res)=>{
 
         console.log(`USER:`, LoggedUser)
         console.log(`Channel:`, joiningChannel)
-        let isAlreadyAmember = await Channel.findOne({channelName, "members.member": LoggedUser._id});
+        let isAlreadyAmember = await Channel.findOne({_id:channel_id, "members.member": LoggedUser._id});
         console.log(`IS ALREADY A MEMBER: `, isAlreadyAmember)
         if(isAlreadyAmember){
             throwErr({name:Errors.ALREADY_MEMBER,code:400})
@@ -368,16 +368,18 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         }
 
 
-        let isLogged = await User.findOne({userEmail});
+        let isLogged = await User.findOne({email:userEmail});
         let channels = await Channel.findOne({channelName});
         if(!channels){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
         }
+        let PopulatedChannels = await populateCollection(channels, 'Channel');
         if(isLogged) {
-            channels = await Channel.findOne({channelName, "members.member":isLogged._id })
-            if(!channels){
-                throwErr({name: Errors.NOT_A_MEMBER,code:404})
-                
+            console.log(`USER:`, isLogged);
+            console.log(`CHANNEL:`, PopulatedChannels);
+            let isMember = channels.members.find(member=>member.member.equals(isLogged._id))
+            if(!isMember){
+                throwErr({name: Errors.NOT_A_MEMBER,code:404,arguments:{channel:PopulatedChannels}})
             }
         }
         console.log(`channels: `, channels)
@@ -388,7 +390,6 @@ router.route('/channel/:channelName').get(async(req,res) =>{
         //     return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
         // }
        
-        let PopulatedChannels = await populateCollection(channels, 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
         return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
     } catch (error) {

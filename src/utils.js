@@ -3,7 +3,14 @@ import { Schema } from 'mongoose';
 export function capitalize(string){
   return string && string.charAt(0).toUpperCase() + string.slice(1);
 }
-
+export 
+function validateName(name){
+    let specialsRegex=/[*|\":<>[\]{}`\\()';@&$]/;
+    if(specialsRegex.test(name)){
+        return false
+    }
+    return true
+}
 export const createDate = ()=>{
   const today = new Date();
 const DATE = {day:"",time:""}
@@ -301,6 +308,7 @@ export function validatePassword(password, name){
 }
 
 export const Errors = {
+  INVALID_CHANNEL_NAME: `Channel name must not contain any special characters such as [*|\":<>[\]{}\`\()';@&$] `,
   CHANNEL_NOT_FOUND: `Such channel wasn't found. Try to type in differently`,
   CHANNELS_NOT_FOUND: `Channels weren't found`,
   USER_NOT_FOUND: `Such user isn't registereg`,
