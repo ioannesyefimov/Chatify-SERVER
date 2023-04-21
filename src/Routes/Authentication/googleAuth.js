@@ -79,7 +79,7 @@ router.route('/').post(async(req,res)=>{
                 throwErr(verificationResponse?.err)
             };
 
-            const profile = await verificationResponse?.payload;
+            const profile = verificationResponse?.payload;
             console.log(`profile: `, profile);
             console.log(profile?.email)
             await conn.transaction(async(session)=>{
@@ -120,14 +120,14 @@ router.route('/').post(async(req,res)=>{
                 // if(dbUser?.loggedThrough !== req.body.loggedThrough){
                 //     return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: dbUser?.loggedThrough})
                 // }
-            
+                let accessToken = await generateAccessToken({email:user.email});
     
                 res.status(201).send({
                     success:true,
                      data:{
                         loggedThrough: 'Google',
                         // user: user,
-                        accessToken: generateAccessToken({email:user?.email})
+                        accessToken
                     }
                 });
             })

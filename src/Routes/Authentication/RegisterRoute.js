@@ -68,14 +68,13 @@ router.route('/').post(async(req,res)=>{
                 bio: null,
                 phone: null,
             }
-            const refreshToken = generateRefreshToken({email});
-            const accessToken = generateAccessToken({email});
+            const refreshToken =await generateRefreshToken({email});
+            const accessToken =await generateAccessToken({email});
 
             const LOGIN = await Login.create([{
                 email: email,
                 password,
                 userName: userName,
-
                 loggedThrough: loggedThrough,
                 refreshToken: refreshToken
 
@@ -84,10 +83,11 @@ router.route('/').post(async(req,res)=>{
                 {
                     email: email,
                     userName: userName,
-                    picture: picture || null,
+                    picture: picture ?? null,
                     loggedThrough: loggedThrough,
                     bio: null,
                     phone: null,
+                    channels:[],
                     
                 }
             ], {session});

@@ -1,15 +1,19 @@
 import express from 'express'
 import * as dotenv from "dotenv"
-
-// import Login from '../../MongoDb/models/login.js'
+import jwt from 'jsonwebtoken'
+import { verifyAccessToken } from '../../utils.js'
 import {Login} from '../../MongoDb/index.js'
 
 export const generateAccessToken = (data) => {
-    console.log(`data: `, data)
-    const accessToken =  jwt.sign(data, process.env.JWT_TOKEN_SECRET, {
-        expiresIn: '30m'
-    });
-    return accessToken
+    return new Promise((resolve, reject) => {
+        console.log(`data: `, data)
+        const accessToken =  jwt.sign(data, process.env.JWT_TOKEN_SECRET, {
+            expiresIn: '30m'
+        });
+        if(!accessToken) return reject('SOMETHING WENT WRONG')
+        return  resolve(accessToken)
+        
+    })
 } 
 
 export const generateRefreshToken = (data) =>{
@@ -17,8 +21,6 @@ export const generateRefreshToken = (data) =>{
     return refreshToken
 }
 
-import jwt from 'jsonwebtoken'
-import { verifyAccessToken } from '../../utils.js'
 
 const  router = express.Router()
 

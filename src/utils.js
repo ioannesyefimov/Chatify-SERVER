@@ -178,9 +178,13 @@ export const throwErr =  ( err) =>{
 }
 
 export function checkError(error,res){
-  console.log(`SERVER error: `, error)
-  console.log(`typeof error: `, typeof error)
+  console.error(`SERVER error: `, error)
+  console.error(`typeof error: `, typeof error)
     let errors = {};
+    if(error.err==='TokenExpiredError'){
+      return res.status(400).send({success:false,message:error.err})
+
+    }
     if(error.name === 'ValidationError'){
       Object.keys(error.errors).forEach((key)=>{
           errors[key] = error.errors[key]?.message;
@@ -346,6 +350,7 @@ export const verifyAccessToken =(token )=>{
         console.log(err)
         return reject({success:false,err})
     }
+    
    return resolve({success:true,result})
     
   })

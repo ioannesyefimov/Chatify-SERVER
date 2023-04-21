@@ -25,28 +25,27 @@ router.route('/').post(async(req,res)=>{
         {
             throwErr({name:`INCORRECT_FORM_SUBMISSION` ,code:400})
         } 
-        const USER_LOGIN = await Login.findOne({email: email})
-
-        if(!USER_LOGIN){
+        const USER = await User.findOne({email: email})
+        if(!USER){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404})
         }
+        let USER_LOGIN = await Login.findOne({email:email});
         if( USER_LOGIN?.loggedThrough !== `INTERNAL` && !USER_LOGIN?.password ) {
             console.log('1')
-            throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,arguments:{loggedThrough: USER_LOGIN?.loggedThrough} })
+            throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,arguments:{loggedThrough: USER?.loggedThrough} })
         }
 
 
         
         if(USER_LOGIN && USER_LOGIN?.password) {
-            console.log(USER_LOGIN)
+            console.log(USER)
             const isValid = bcrypt.compareSync(password, USER_LOGIN.password)
             if(!isValid){
                 throwErr({name:Errors.WRONG_PASSWORD, code:400})
             } 
-            let USER = await User.findOne({email: email});
             
            
-            const GeneratedToken = generateAccessToken({email:USER?.email});
+            const GeneratedToken = await generateAccessToken({email:USER?.email});
             return res.status(200).send({success:true, data: { accessToken: GeneratedToken, loggedThrough: USER?.loggedThrough}})
         }
     } catch (error) {

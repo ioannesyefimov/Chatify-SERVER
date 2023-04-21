@@ -21,33 +21,31 @@ export const handleUserData = async(accessToken,loggedThrough,res) => {
         if(accessToken){
             console.log(`isvalid: `,isValidToken)
             const  isValidToken = await verifyAccessToken(accessToken);
+            if(!isValidToken?.success || !isValidToken.result.email) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-            if(!isValidToken?.success) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+            const USER = await User.findOne({email: isValidToken?.result.email})
+            if(USER.loggedThrough !== loggedThrough){
+                return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+            }
+            let populatedUser = await populateCollection(USER,'User')
 
-                if(isValidToken?.result?.email){
-                    const USER = await User.findOne({email: isValidToken?.result.email})
-                    if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
-                    let populatedUser = await populateCollection(USER,'User')
-    
-                    if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
-                    const user = {
-                        userName: populatedUser?.userName  ,
-                        email: populatedUser.email,
-                        picture: populatedUser?.picture || null,
-                        bio: populatedUser?.bio || null,
-                        phone: populatedUser?.phone || null,
-                        loggedThrough: populatedUser?.loggedThrough,
-                        channels: populatedUser.channels ?? [],
-                        _id:populatedUser._id
-                    }
-                    console.log(populatedUser)
-    
-                    const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
-                    return res.status(200).send({
-                        success:true,
-                        data: {populatedUser, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
-                    })
-                }
+            if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
+            const user = {
+                userName: populatedUser?.userName  ,
+                email: populatedUser.email,
+                picture: populatedUser?.picture || null,
+                bio: populatedUser?.bio || null,
+                phone: populatedUser?.phone || null,
+                loggedThrough: populatedUser?.loggedThrough,
+                _id:populatedUser._id
+            }
+            console.log(populatedUser)
+
+            const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
+            return res.status(200).send({
+                success:true,
+                data: {user:user, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
+            })
         }
     }catch(err){
         console.log(err);
@@ -62,32 +60,30 @@ router.route('/').get(async(req,res)=>{
         const  isValidToken = await verifyAccessToken(accessToken);
         console.log(`isvalid: `,isValidToken)
 
-            if(!isValidToken?.success) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+            if(!isValidToken?.success) {
+                throwErr({name: isValidToken.err?.message ?? isValidToken?.err})
+            }
+            const USER = await User.findOne({email: isValidToken?.result.email})
+            if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
+            if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+            let populatedUser = await populateCollection(USER,'User')
 
-                if(isValidToken?.result?.email){
-                    const USER = await User.findOne({email: isValidToken?.result.email})
-                    if(USER.loggedThrough !== loggedThrough) return res.status(404).send({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
-                    let populatedUser = await populateCollection(USER,'User')
-    
-                    if(!USER)return res.status(404).send({success:false,message:`NOT_FOUND`})
-                    const user = {
-                        userName: populatedUser?.userName  ,
-                        email: populatedUser.email,
-                        picture: populatedUser?.picture || null,
-                        bio: populatedUser?.bio || null,
-                        phone: populatedUser?.phone || null,
-                        loggedThrough: populatedUser?.loggedThrough,
-                        channels: populatedUser.channels ?? [],
-                        _id:populatedUser._id
-                    }
-                    console.log(populatedUser)
-    
-                    const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
-                    return res.status(200).send({
-                        success:true,
-                        data: {user:populatedUser, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
-                    })
-                }
+            const user = {
+                userName: populatedUser?.userName  ,
+                email: populatedUser.email,
+                picture: populatedUser?.picture ?? null,
+                bio: populatedUser?.bio ?? null,
+                phone: populatedUser?.phone ?? null,
+                loggedThrough: populatedUser?.loggedThrough,
+                _id:populatedUser._id
+            }
+            console.log(populatedUser)
+
+            const GeneratedAccessToken = await generateAccessToken({email: user?.email}) 
+            return res.status(200).send({
+                success:true,
+                data: {user:user, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
+            })
     }catch(err){
         console.log(err);
         checkError(err,res)
@@ -165,8 +161,7 @@ router.route('/get/users').get(async(req,res)=>{
             return res.status(200).send({success:true,data:{users: users?? USER}})
         }
         let populatedUser = await populateCollection(USER[0],'User');
-        delete populatedUser.loggedThrough
-        delete populatedUser.phone
+        delete populatedUser.channels
         return res.status(200).send({
             success:true,
             data: {users:[populatedUser] }

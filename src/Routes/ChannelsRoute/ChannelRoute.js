@@ -42,10 +42,13 @@ router.route('/create').post(async(req,res) =>{
             },{session});
 
             if(channelAvatar){
+                console.error(channelAvatar);
                 let uploadPicture = await handleUploadPicture(channelAvatar);
-                if(!uploadPicture?.success) throwErr(uploadPicture.message)
-                newChannel.channelAvatar = uploadPicture?.url
-                await newChannel.save({session})
+                console.error(uploadPicture);
+                if(uploadPicture.success) {
+                    newChannel.channelAvatar = uploadPicture?.url
+                    await newChannel.save({session})
+                }
             }
     
             if(channelDiscription){
