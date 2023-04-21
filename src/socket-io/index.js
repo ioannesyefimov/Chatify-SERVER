@@ -29,8 +29,9 @@ io.on('connection', (socket)=>{
     console.log(`User connected ${socket.id}`)
 
     socket.on('join_channel',async data=>{
-        socket.join(data)
-        console.log(`JOINED`, data);
+        socket.join(data.room)
+        console.log(`JOINED`, data.room);
+        socket.emit('join_channel',{data:{room:data.room}})
     });
     socket.on('leave_channel',async(data)=>{
         socket.leave(data)
@@ -38,13 +39,13 @@ io.on('connection', (socket)=>{
     })
 
 
-    socket.on('get_channel',async(data)=>{
-        console.log(`data:`,data);
-       let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
-       console.log(`RESPONSE:`, response);
-       console.log(`ID:`, socket.id);
-        io.sockets.to(socket.id).emit('get_channel', response)
-    })
+    // socket.on('get_channel',async(data)=>{
+    //     console.log(`data:`,data);
+    //    let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
+    //    console.log(`RESPONSE:`, response);
+    //    console.log(`ID:`, socket.id);
+    //     io.sockets.to(socket.id).emit('get_channel', response)
+    // })
 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
