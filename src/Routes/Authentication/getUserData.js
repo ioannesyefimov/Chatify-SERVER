@@ -129,30 +129,13 @@ export const getUsers = async(req,res)=>{
 }
 
 
-router.route('/get/users').get(async(req,res)=>{
+router.route('/users').get(async(req,res)=>{
     try {
         const {userName,email,id,} =req.query  
-        let USER 
-            if(userName !=='null' | 'undefined'){
-                console.log(`QUERY:`, req.query);
-                USER = await User.find({userName:userName.trim()})
-            }
-            else if(email !=='null' | 'undefined') {
-                console.log(`QUERY:`, req.query);
-                USER = await User.find({email})
-            }
-            else if(id !=='null' | 'undefined') {
-                console.log(`QUERY:`, req.query);
-                USER = await User.find({_id:id})
-            } else {
-                // return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
-                USER = await User.find({})
-            }
-            console.log(`USER:`, USER);
+        let USER = await User.find({}) 
         if(!USER.length ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:400 })
         }
-
         if(USER.length > 1){
             let users = []
             for(let user of USER) {

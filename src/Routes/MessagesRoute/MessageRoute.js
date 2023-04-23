@@ -53,7 +53,7 @@ router.route('/create').post(async(req,res) =>{
         console.log(`channels:`, populatedMessages)
         // console.log(`user:`, PopulatedUser)
 
-        res.status(200).send({success:true, data: {message:`${capitalize(LoggedUser?.userName)} has sent "${message}" to channel "${isCreated?.channelName}"`, channel: populatedMessages}})
+        res.status(200).send({success:true, data: {message:newMessage, channel: populatedMessages}})
         })
 
     } catch (error) {

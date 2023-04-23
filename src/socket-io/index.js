@@ -25,9 +25,9 @@ export const io = new Server(server, {
         methods: ['GET','POST','DELETE']
     }
 })
-io.on('connection', (socket)=>{
+const currentChannel = io.of('/currentChannel')
+currentChannel.on('connection', (socket)=>{
     console.log(`User connected ${socket.id}`)
-
     socket.on('join_channel',async data=>{
         socket.join(data.room)
         console.log(`JOINED`, data.room);
@@ -39,13 +39,13 @@ io.on('connection', (socket)=>{
     })
 
 
-    // socket.on('get_channel',async(data)=>{
-    //     console.log(`data:`,data);
-    //    let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
-    //    console.log(`RESPONSE:`, response);
-    //    console.log(`ID:`, socket.id);
-    //     io.sockets.to(socket.id).emit('get_channel', response)
-    // })
+    socket.on('get_channel',async(data)=>{
+        console.log(`data:`,data);
+       let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
+       console.log(`RESPONSE:`, response);
+       console.log(`ID:`, socket.id);
+        currentChannel.to(socket.id).emit('get_channel', response)
+    })
 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
@@ -61,13 +61,13 @@ io.on('connection', (socket)=>{
         if(!response.success){
               return  io.sockets.in(data.room).emit('receive_message',response)
         }
-        io.sockets.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages}})
+        currentChannel.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
     });
     socket.on('delete_message',async(data)=>{
         console.log(`DATA:`, data);
         if(data.message_id){
             let response = await APIFetch({url:`${baseUrl}/messages/delete?message_id=${data.message_id}&userEmail=${data.userEmail}&channel_id=${data.channel_id}`, method:'DELETE' })
-            io.sockets.in(data.channel_id).emit("delete_message",response)
+            currentChannel.in(data.channel_id).emit("delete_message",response)
         }
 
     })
