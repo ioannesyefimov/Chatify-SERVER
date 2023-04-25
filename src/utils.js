@@ -177,6 +177,54 @@ export const throwErr =  ( err) =>{
   }
 }
 
+export function checkErrWithoutRes(error,res){
+  console.error(`SERVER error: `, error)
+  console.error(`typeof error: `, typeof error)
+    let errors = {};
+    if(error.err==='TokenExpiredError'){
+      return {success:false,err:error.err}
+
+    }
+    if(error.name === 'ValidationError'){
+      Object.keys(error.errors).forEach((key)=>{
+          errors[key] = error.errors[key]?.message;
+          
+      })
+      console.log(error)
+      return {success:false, err:errors}
+
+    } else
+    if(error?.code){
+      console.log(`error code : `)
+      let errors = {}
+      let filteredErrs = Object.keys(error).filter(
+          (err, i)=> err !== 'code' && err !=='index') 
+    console.log(filteredErrs)       
+    filteredErrs = filteredErrs.forEach((key,ind)=>{
+      if(key === 'keyPattern'){
+          errors['duplicate_pattern'] = error[key]
+          errors['message'] = `${error[key]} already signed up`
+      } else
+      if(key === 'keyValue'){
+          errors['duplicateValue'] = error[key]
+      }else{
+
+          errors[key] = error[key]
+      }
+      })
+      console.log(`FILTERED: `, filteredErrs)
+      console.log(`error: `, error)
+      console.log(`errors: `, errors)
+      if(Object.keys(errors).length === 0){
+        return {success:false,err:error}
+      }
+      return {success:false,err:errors}
+
+    }
+    return {succes:false,err: error}
+
+  
+}
 export function checkError(error,res){
   console.error(`SERVER error: `, error)
   console.error(`typeof error: `, typeof error)

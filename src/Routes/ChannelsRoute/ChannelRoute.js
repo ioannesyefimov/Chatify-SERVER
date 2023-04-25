@@ -1,7 +1,7 @@
 import express from 'express';
 import * as dotenv from 'dotenv';
 import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
-import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken, containsEncodedComponents } from '../../utils.js';
+import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken, containsEncodedComponents, checkErrWithoutRes } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { handleUploadPicture } from '../uploadRoute/uploadRoute.js';
 
@@ -9,8 +9,7 @@ import { handleUploadPicture } from '../uploadRoute/uploadRoute.js';
 dotenv.config()
 const router = express.Router()
 
-
-router.route('/create').post(async(req,res) =>{
+export const createChannel = async(req) =>{
     try{
         const session = await conn.startSession()
         const {accessToken,channelDiscription, channelName,channelAvatar} = req.body  // Bearer ACCESSTOKEN
@@ -76,15 +75,26 @@ router.route('/create').post(async(req,res) =>{
             let PopulatedChannels =await populateCollection(newChannel, "Channel");
             await session.commitTransaction()
             session.endSession()
-            return res.status(200).send({success:true, data: PopulatedChannels})
+            return {success:true, data: PopulatedChannels}
         })
 
     } catch (error) {
-         checkError(error,res)
+         return checkErrWithoutRes(error,res)
+    }
+
+}
+
+router.route('/create').post(async(req,res) =>{
+    let  response = await createChannel(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
     }
 })
 
-router.route('/join').post(async(req,res)=>{
+
+export const joinChannel = async(req)=>{
     try {
         const session = await conn.startSession()
         const {userEmail,channel_id} = req.body  // Bearer ACCESSTOKEN
@@ -127,14 +137,23 @@ router.route('/join').post(async(req,res)=>{
             let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
             await session.commitTransaction()
             session.endSession()
-            return res.status(200).send({success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}})
+            return {success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}}
         })
     } catch (error) {
-         checkError(error,res)
+        return checkErrWithoutRes(error,res)
+    }
+}
+router.route('/join').post(async(req,res)=>{
+    let  response = await joinChannel(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
     }
 })
 
-router.route('/leave').put(async(req,res)=>{
+
+export const leaveChannel= async(req)=>{
     try {
         const session = await conn.startSession
         console.log(`body:`, req.body)
@@ -148,8 +167,7 @@ router.route('/leave').put(async(req,res)=>{
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        
-        return await conn.transaction(async(session)=>{
+        return await conn.transaction(async()=>{
             let LoggedUser = await User.findOne({email:userEmail}).session(session);
             if(!LoggedUser )
             { 
@@ -210,28 +228,32 @@ router.route('/leave').put(async(req,res)=>{
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
            
-            return res.status(200).send({success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}})
+            return {success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}}
         })
     } catch (error) {
-         checkError(error,res)
+         return checkErrWithoutRes(error)
     } 
+}
+router.route('/leave').put(async(req,res)=>{
+    let  response = await leaveChannel(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
+    }
 })
 
-
-
-router.route('/delete').delete(async(req,res)=>{
-    
+export const deleteChannel = async(req)=>{
     try {
         const session = await conn.startSession()
         const {accessToken, channelName, } = req.query
         let ARGUMENTS = {accessToken,channelName,}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
-        
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
         const  isValidToken = await verifyAccessToken(accessToken) 
-        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message ?? isValidToken?.err})
 
         
         let LoggedUser = await User.findOne({email:isValidToken?.result.email});
@@ -280,16 +302,24 @@ router.route('/delete').delete(async(req,res)=>{
                 console.log(`deletedChannel: ` ,deletedChannel)
                 await session.commitTransaction()
                 session.endSession()
-                return res.status(200).send({success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}})
+                return {success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}}
             
         })        
 
     } catch (error) {
-         checkError(error,res)
+         return checkErrWithoutRes(error)
     } 
-})
+}
 
-router.route('/userChannels').get(async(req,res) =>{
+router.route('/delete').delete(async(req,res)=>{
+    let  response = await leaveChannel(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
+    }
+})
+export const getUserChannels = async(req)=>{
     try {
         const {userEmail} = req.query  // Bearer ACCESSTOKEN
         if(!userEmail){
@@ -309,37 +339,38 @@ router.route('/userChannels').get(async(req,res) =>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{user: LoggedUser,channels: [PopulatedChannels]}})
+            return {success:true,data:{user: LoggedUser,channels: [PopulatedChannels]}}
         }
         let PopulatedUser = await populateCollection(LoggedUser,'User');
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{user:PopulatedUser,channels: [PopulatedChannels]}})
+        return {success:true,data:{user:PopulatedUser,channels: [PopulatedChannels]}}
 
     } catch (error) {
-         checkError(error,res)
+         return checkErrWithoutRes(error)
     }
 }
+router.route('/userChannels').get(async(req,res) =>{
+    let  response = await getUserChannels(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
+    }
+})
 
-
-)
-
-export const getChannel =async(channel_id,userEmail)=>{
+export const getChannel =async(req)=>{
     try {
-        if(!channel_id){
+        console.log(`REQ:`, req);
+        const {channelName,userEmail}=req.query
+        if(!channelName){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
-     let isEncoded = containsEncodedComponents(channel_id)
-     if(isEncoded){
-        channel_id  = decodeURIComponent(channel_id)
-     }
-
-
         let isLogged = await User.findOne({userEmail});
-        let channels = await Channel.find({_id:channel_id});
+        let channels = await Channel.find({channelName});
         if(isLogged) {
-            channels = await Channel.find({_id:channel_id, "members.member":isLogged._id })
+            channels = await Channel.find({channelName, "members.member":isLogged._id })
         }
         console.log(`channels: `, channels)
         if(channels.length === 0){
@@ -355,57 +386,21 @@ export const getChannel =async(channel_id,userEmail)=>{
        console.log(`PopulatedChannels,` , PopulatedChannels)
         return {success:true,data:{channels: PopulatedChannels}}
     } catch (error) {
-        //  checkError(error,res)
-         return {success:false,message:error}
+         return checkErrWithoutRes(error)
     }
 }
-
 router.route('/channel/:channelName').get(async(req,res) =>{
-    try {
-        let {channelName} = req.params
-        let {userEmail} = req.query
-        console.log(`name:`, channelName);
-        console.log(`userEmail:`, userEmail);
-        if(!channelName){
-            throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
-        }
-
-
-        let isLogged = await User.findOne({email:userEmail});
-        let channels = await Channel.findOne({channelName});
-        if(!channels){
-             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
-        }
-        let PopulatedChannels = await populateCollection(channels, 'Channel');
-        if(isLogged) {
-            console.log(`USER:`, isLogged);
-            console.log(`CHANNEL:`, PopulatedChannels);
-            let isMember = channels.members.find(member=>member.member.equals(isLogged._id))
-            if(!isMember){
-                throwErr({name: Errors.NOT_A_MEMBER,code:404,arguments:{channel:PopulatedChannels}})
-            }
-        }
-        console.log(`channels: `, channels)
-        console.log(`user: `, isLogged)
-        // if(channels.length > 1){
-        //     // loop through every channel that user is member of and then send it 
-        //     let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-        //     return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
-        // }
-       
-       console.log(`PopulatedChannels,` , PopulatedChannels)
-        return res.status(200).send({success:true,data:{channels: PopulatedChannels}})
-    } catch (error) {
-        //  checkError(error,res)
-         return res.status(400).send({success:false,message:error})
+    let  response = await getChannel(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
     }
 }
 )
-router.route('/').get(async(req,res) =>{
+export const getChannels = async()=>{
     try {
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-
-
         let channels = await Channel.find({ });
         console.log(channels)
         if(channels.length === 0){
@@ -414,19 +409,24 @@ router.route('/').get(async(req,res) =>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return res.status(200).send({success:true,data:{channels: [PopulatedChannels]}})
+            return {success:true,data:{channels: [PopulatedChannels]}}
         }
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return res.status(200).send({success:true,data:{channels: [PopulatedChannels]}})
+        return {success:true,data:{channels: [PopulatedChannels]}}
 
     } catch (error) {
-         checkError(error,res)
+         return checkErrWithoutRes(error)
     }
 }
-
-
-)
+router.route('/').get(async(req,res) =>{
+    let  response = await getChannels(req);
+    if(response.success){
+        res.status(200).send(response)
+    } else {
+        res.status(500).send(response)
+    }
+})
 
 
 export default router

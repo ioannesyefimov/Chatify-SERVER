@@ -5,34 +5,37 @@ import path from 'path'
 import fs from 'fs'
 import express from 'express'
 import { createDate, populateCollection,Errors, APIFetch } from '../utils.js'
-import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
+import { getChannel, getUserChannels } from '../Routes/ChannelsRoute/ChannelRoute.js'
+import { createMessage, deleteMessage } from '../Routes/MessagesRoute/MessageRoute.js'
 
 export const app = 
 
 express();
 
-const baseUrl = `http://localhost:5050/api`
-
-app.use(
-    cors()
-)
-
-app.use(express.json({limit: '50mb'}));
-app.use(express.urlencoded({limit: '50mb'}));
-
-
+const baseUrl = `https://localhost:5050/api`
 export const server = https.createServer({
    pfx: fs.readFileSync('./ssl/cert.pfx'),
-    passphrase: '134679582ioa'
+    passphrase: '134679582ioa',
+    
 },app)
 
 export const io = new Server(server, {
     cors: {
         origin: 'https://localhost:5173',
         methods: ['GET','POST','DELETE']
-    }
+    },
+    pfx:fs.readFileSync('./ssl/cert.pfx'),
+    passphrase: '134679582ioa',
 })
+app.use(
+    cors()
+)
+
+app.set('socketio',io)
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({limit: '50mb'}));
 const currentChannel = io.of('/currentChannel')
+
 currentChannel.on('connection', (socket)=>{
     console.log(`User connected ${socket.id}`)
     socket.on('join_channel',async data=>{
@@ -48,32 +51,31 @@ currentChannel.on('connection', (socket)=>{
 
     socket.on('get_channel',async(data)=>{
         console.log(`data:`,data);
-       let response = await APIFetch({url:`${baseUrl}/channels/channel/${data.channelName}?userEmail=${data?.user.email}`});
-       console.log(`RESPONSE:`, response);
-       console.log(`ID:`, socket.id);
+        let req = {query :{userEmail:data?.userEmail,channelName: data?.channelName}}
+        let response = await getChannel(req)
+        console.log(`RESPONSE:`, response);
+        console.log(`ID:`, socket.id);
         currentChannel.to(socket.id).emit('get_channel', response)
     })
 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
+       
         if(!data?.user) return
         console.log(`ROOM:`, data.room);
-        let response = await APIFetch({
-            url:`${baseUrl}/messages/create`,
-            method:'POST',
-            body:{
-                userEmail:data?.user.email, channelId:data?.channelId, message: data?.message
-            },
-        }); 
+        let response = await createMessage({body:{
+            userEmail:data?.user.email, channelId:data?.channel_id, message: data?.message
+        }})        
+
         if(!response.success){
-              return  io.sockets.in(data.room).emit('receive_message',response)
+              return   currentChannel.in(data.room).emit('receive_message',response)
         }
         currentChannel.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
     });
     socket.on('delete_message',async(data)=>{
         console.log(`DATA:`, data);
         if(data.message_id){
-            let response = await APIFetch({url:`${baseUrl}/messages/delete?message_id=${data.message_id}&userEmail=${data.userEmail}&channel_id=${data.channel_id}`, method:'DELETE' })
+            let response = await deleteMessage({query:{message_id:data.message_id,userEmail:data.userEmail,channel_id:data.channel_id}});
             currentChannel.in(data.channel_id).emit("delete_message",response)
         }
 
