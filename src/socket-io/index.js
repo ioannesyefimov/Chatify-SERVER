@@ -22,8 +22,8 @@ app.use(express.urlencoded({limit: '50mb'}));
 
 
 export const server = https.createServer({
-    cert: fs.readFileSync("./ssl/cert.crt"),
-    key:fs.readFileSync("./ssl/cert.key"),
+   pfx: fs.readFileSync('./ssl/cert.pfx'),
+    passphrase: '134679582ioa'
 },app)
 
 export const io = new Server(server, {

@@ -19,7 +19,7 @@ Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 app.route('/api/user/:userEmail').get(async(req,res)=>await getUsers(req,res))
 
   
-
+app.route('/api/').get((req,res)=>res.send('Hello from chatify server!'))
 app.use('/api/auth/register', RegisterRoute)
 app.use('/api/auth/signin', SignInRoute)
 
