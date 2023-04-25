@@ -182,7 +182,7 @@ export function checkError(error,res){
   console.error(`typeof error: `, typeof error)
     let errors = {};
     if(error.err==='TokenExpiredError'){
-      return res.status(400).send({success:false,message:error.err})
+      return res.status(400).send({success:false,err:error.err})
 
     }
     if(error.name === 'ValidationError'){
@@ -191,7 +191,7 @@ export function checkError(error,res){
           
       })
       console.log(error)
-      return res.status(400).send({success:false, message:errors})
+      return res.status(400).send({success:false, err:errors})
 
     } else
     if(error?.code){
@@ -202,10 +202,11 @@ export function checkError(error,res){
     console.log(filteredErrs)       
     filteredErrs = filteredErrs.forEach((key,ind)=>{
       if(key === 'keyPattern'){
-          errors['Duplicate_Pattern'] = error[key]
+          errors['duplicate_pattern'] = error[key]
+          errors['message'] = `${error[key]} already signed up`
       } else
       if(key === 'keyValue'){
-          errors['Duplicate_Value'] = error[key]
+          errors['duplicateValue'] = error[key]
       }else{
 
           errors[key] = error[key]
@@ -215,12 +216,12 @@ export function checkError(error,res){
       console.log(`error: `, error)
       console.log(`errors: `, errors)
       if(Object.keys(errors).length === 0){
-        return res.status(400).send({success:false,message:error})
+        return res.status(400).send({success:false,err:error})
       }
-      return res.status(400).send({success:false,message:errors})
+      return res.status(400).send({success:false,err:errors})
 
     }
-    return res.status(500).send({succes:false,message: error})
+    return res.status(500).send({succes:false,err: error})
 
   
 }

@@ -1,11 +1,15 @@
 import {Server} from 'socket.io'
-import http from 'http'
+import https from 'https'
 import cors from 'cors'
+import path from 'path'
+import fs from 'fs'
 import express from 'express'
 import { createDate, populateCollection,Errors, APIFetch } from '../utils.js'
 import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
-import { Channel, Login, Message } from '../MongoDb/index.js'
-export const app = express();
+
+export const app = 
+
+express();
 
 const baseUrl = `http://localhost:5050/api`
 
@@ -17,7 +21,10 @@ app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 
 
-export const server = http.createServer(app)
+export const server = https.createServer({
+    cert: fs.readFileSync("./ssl/cert.crt"),
+    key:fs.readFileSync("./ssl/cert.key"),
+},app)
 
 export const io = new Server(server, {
     cors: {

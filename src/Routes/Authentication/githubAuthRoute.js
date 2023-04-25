@@ -20,7 +20,7 @@ export const handleGithubSingin = async(accessToken ,res)=>{
 
         const USER = await User.findOne({email: isValidToken?.email});
         if(!USER) return res.status(400).send({success:false, message:Errors.NOT_FOUND})
-        if(USER.loggedThrough !== 'Github') return res.status(400).send({success:false, message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
+        if(USER.loggedThrough !== 'Github') return res.status(400).send({success:false, error:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: isLoggedAlready?.loggedThrough})
  
         const user = {
             userName: USER?.userName  ,
@@ -30,13 +30,8 @@ export const handleGithubSingin = async(accessToken ,res)=>{
             bio: USER?.bio,
             phone: USER?.phone,
         }
-        const GeneratedRefreshToken = generateRefreshToken(user?.email)
         const GeneratedAccessToken = generateAccessToken(user?.email)
-
-        
         res.status(201).send({success:true,data:{accessToken: GeneratedAccessToken, loggedThrough:user.loggedThrough, user: user}});
-        
-        
     } catch (error) {
         return checkError(error,res)
     }
@@ -49,13 +44,20 @@ router.route('/').post(async(req,res) =>{
         console.log(accessToken)
       
         let isValidToken = await verifyAccessToken(accessToken);
-        if(!isValidToken.success) throwErr(isValidToken?.err)
+        if(!isValidToken.success){
+            throwErr(isValidToken?.err)
+        }
         console.log(`token resp`,isValidToken);
          return await conn.transaction(async()=>{
-            let USER = await User.findOne({email:isValidToken?.response?.email})
+            let USER = await User.findOne({email:isValidToken?.result?.email});
+            console.log(`USER:`, USER);
             if(USER){
+                if(USER.loggedThrough !== 'Github') {
+                    throwErr({name:Errors.SIGNED_UP_DIFFERENTLY,arguments:{loggedThrough:USER.loggedThrough},code:400, message:`Such account has already been signed up through ${USER.loggedThrough}`})
+                }
                 return res.status(200).send({success:true,data:{user:USER}})
-            }
+            }else {
+
                 let user = {
                     userName: isValidToken?.result?.userName,
                     picture: isValidToken?.result?.avatar_url,
@@ -64,8 +66,9 @@ router.route('/').post(async(req,res) =>{
                     bio: isValidToken?.result?.bio,
                     phone: isValidToken?.result?.phone,
                 }
-                let newUser = await User.create([{user}],{session});
+                let newUser = await User.create([user],{session});
                 return res.status(200).send({success:true,data:{user:newUser,message:'USER HAS BEEN SIGNED UP'}})
+            }
         })
 
     } catch (error) {
