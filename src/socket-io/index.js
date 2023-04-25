@@ -63,9 +63,11 @@ currentChannel.on('connection', (socket)=>{
        
         if(!data?.user) return
         console.log(`ROOM:`, data.room);
+        
         let response = await createMessage({body:{
             userEmail:data?.user.email, channelId:data?.channel_id, message: data?.message
         }})        
+        console.log(`RESPONSE:`, response);
 
         if(!response.success){
               return   currentChannel.in(data.room).emit('receive_message',response)
@@ -74,10 +76,8 @@ currentChannel.on('connection', (socket)=>{
     });
     socket.on('delete_message',async(data)=>{
         console.log(`DATA:`, data);
-        if(data.message_id){
-            let response = await deleteMessage({query:{message_id:data.message_id,userEmail:data.userEmail,channel_id:data.channel_id}});
-            currentChannel.in(data.channel_id).emit("delete_message",response)
-        }
+            let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});
+            currentChannel.in(data?.channel_id)?.emit("delete_message",response)
 
     })
     socket.on('disconnect',()=>{

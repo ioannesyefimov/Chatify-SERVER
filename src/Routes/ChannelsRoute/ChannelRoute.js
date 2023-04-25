@@ -31,8 +31,8 @@ export const createChannel = async(req) =>{
         if(isCreated) {
             throwErr({name: Errors.ALREADY_EXISTS,code:400,arguments: isCreated })
         }
-
-        return await session.withTransaction(async()=>{
+            let response
+         await session.withTransaction(async()=>{
 
 
             console.log(`ISCREATED: `,isCreated)
@@ -75,8 +75,9 @@ export const createChannel = async(req) =>{
             let PopulatedChannels =await populateCollection(newChannel, "Channel");
             await session.commitTransaction()
             session.endSession()
-            return {success:true, data: PopulatedChannels}
+            response =  {success:true, data: PopulatedChannels}
         })
+        return response
 
     } catch (error) {
          return checkErrWithoutRes(error,res)
@@ -125,7 +126,8 @@ export const joinChannel = async(req)=>{
         if(isAlreadyAmember){
             throwErr({name:Errors.ALREADY_MEMBER,code:400})
         }
-        return await session.withTransaction(async()=>{
+        let response 
+         await session.withTransaction(async()=>{
 
             let memberRole = await Role.findOne({name:'Member'});
             LoggedUser?.channels.push({channel:joiningChannel, roles:[memberRole]})
@@ -137,8 +139,9 @@ export const joinChannel = async(req)=>{
             let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
             await session.commitTransaction()
             session.endSession()
-            return {success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}}
+            response = {success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}}
         })
+        return response
     } catch (error) {
         return checkErrWithoutRes(error,res)
     }
@@ -155,7 +158,7 @@ router.route('/join').post(async(req,res)=>{
 
 export const leaveChannel= async(req)=>{
     try {
-        const session = await conn.startSession
+        const session = await conn.startSession();
         console.log(`body:`, req.body)
         const {accessToken,userEmail,channel_id} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {userEmail,channel_id}
@@ -166,8 +169,8 @@ export const leaveChannel= async(req)=>{
         }
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-
-        return await conn.transaction(async()=>{
+        let response
+         await conn.transaction(async()=>{
             let LoggedUser = await User.findOne({email:userEmail}).session(session);
             if(!LoggedUser )
             { 
@@ -198,7 +201,7 @@ export const leaveChannel= async(req)=>{
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
                 return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-                .then(channel=>res.status(200).send({success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}}))
+                .then(channel=>response = {success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}})
                 .catch(err=>throwErr(err)) 
             }
         
@@ -228,8 +231,9 @@ export const leaveChannel= async(req)=>{
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
            
-            return {success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}}
+            response= {success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}}
         })
+        return response
     } catch (error) {
          return checkErrWithoutRes(error)
     } 
@@ -286,7 +290,8 @@ export const deleteChannel = async(req)=>{
         if(!isAdmin){
             throwErr({name: Errors.NOT_HAVE_PERMISSION, code: 400})
         }
-        return await session.withTransaction(async()=>{
+        let response 
+         await session.withTransaction(async()=>{
             let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
             await  User.find({"channels.channel": deletedChannel?._id})
             .then(async users=>{
@@ -301,10 +306,12 @@ export const deleteChannel = async(req)=>{
 
                 console.log(`deletedChannel: ` ,deletedChannel)
                 await session.commitTransaction()
-                session.endSession()
-                return {success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}}
+                await session.endSession()
+                response = {success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}}
+            })        
+
+            return response
             
-        })        
 
     } catch (error) {
          return checkErrWithoutRes(error)
@@ -339,13 +346,13 @@ export const getUserChannels = async(req)=>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return {success:true,data:{user: LoggedUser,channels: [PopulatedChannels]}}
+            return {success:true,data:{user: LoggedUser,channels: PopulatedChannels}}
         }
         let PopulatedUser = await populateCollection(LoggedUser,'User');
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return {success:true,data:{user:PopulatedUser,channels: [PopulatedChannels]}}
+        return {success:true,data:{user:PopulatedUser,channels:[PopulatedChannels]}}
 
     } catch (error) {
          return checkErrWithoutRes(error)

@@ -29,7 +29,8 @@ export const createMessage = async(req)=>{
         if(!isCreated){
             throwErr({name: Errors.NOT_A_MEMBER, code:404})
         }
-        return await conn.transaction(async(session)=>{
+        let response 
+         await conn.transaction(async(session)=>{
             
             const newMessage =  new Message({
                 message
@@ -47,10 +48,11 @@ export const createMessage = async(req)=>{
         console.log(`channels:`, populatedMessages)
         // console.log(`user:`, PopulatedUser)
 
-        return {success:true, data: {message:newMessage, channel: populatedMessages}}
+        response= {success:true, data: {message:newMessage, channel: populatedMessages}}
     })
 
-    } catch (error) {
+    return response ?? throwErr({name:'Transaction failed', code:500})
+} catch (error) {
         return checkErrWithoutRes(error)
     } 
 }
@@ -82,7 +84,8 @@ export const deleteMessage = async(req)=>{
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
-        return await conn.transaction(async (session)=>{
+        let response
+         await conn.transaction(async (session)=>{
 
             let LoggedUser = await User.findOne({email:userEmail}).session(session);
             if(!LoggedUser ) 
@@ -118,8 +121,10 @@ export const deleteMessage = async(req)=>{
             }
             isMember.messages?.pull(message_id)
             await isMember.save({session})
-            return {success:true,data:{message:`"${deleted?.message}" has been deleted from "${isMember?.channelName}"`, channel: populatedChannel}}
+            response =  {success:true,data:{message:`"${deleted?.message}" has been deleted from "${isMember?.channelName}"`, channel: populatedChannel}}
         })
+
+        return response ?? throwErr({name:'Transaction failed', code:500})
     } catch (error) {
         return checkErrWithoutRes(error)
     } 
