@@ -21,71 +21,71 @@ export const handleFacebookSignin = async()=>{
 
 }
 
-router.route('/register').post(async(req,res)=>{
-    try {
-        const session = await conn.startSession()
+// router.route('/register').post(async(req,res)=>{
+//     try {
+//         const session = await conn.startSession()
 
-        const {credentials} = req.body
-        if(!credentials) return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
-
-
-        const isLoggedAlready = await Login.findOne({email: credentials?.email})
-        if(isLoggedAlready !== null){
-            return isLoggedAlready?.loggedThrough !== 'Internal' ? 
-             res.status(400).send({
-                success:false, message: Errors.SIGNED_UP_DIFFERENTLY, 
-                loggedThrough: isLoggedAlready?.loggedThrough
-            }) :
-            res.status(400).send({
-                success:false, message: Errors.ALREADY_EXISTS,
-                loggedThrough: isLoggedAlready?.loggedThrough
-            })
-        }
-
-       return await session.withTransaction(async()=>{
-            if(credentials?.picture?.data){
-                console.log(`picture:`, credentials?.picture?.data?.url);
-                let uploadPicture = await handleUploadPicture(credentials?.picture?.data?.url)
-                if(!uploadPicture?.success) return console.log(`uploading error: `,uploadPicture?.message)
-                credentials.picture.data.url = uploadPicture?.url;
-            }
-            let user = {
-                email: credentials?.email,
-                fullName: credentials?.name,
-                picture: credentials?.picture?.data?.url,
-                loggedThrough:'Facebook',
-                bio: null,
-                phone: null,
-            }
-            const refreshToken = generateRefreshToken(user);
-            const accessToken = generateAccessToken(user);
-
-            const loginUser = await Login.create([{
-                email: user.email,
-                loggedThrough: user.loggedThrough,
-                refreshToken: refreshToken,
-                userName: userName,
+//         const {credentials} = req.body
+//         if(!credentials) return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
 
 
-            }], {session})
-            const USER = await User.create([
-                user
-            ], {session});
+//         const isLoggedAlready = await Login.findOne({email: credentials?.email})
+//         if(isLoggedAlready !== null){
+//             return isLoggedAlready?.loggedThrough !== 'Internal' ? 
+//              res.status(400).send({
+//                 success:false, message: Errors.SIGNED_UP_DIFFERENTLY, 
+//                 loggedThrough: isLoggedAlready?.loggedThrough
+//             }) :
+//             res.status(400).send({
+//                 success:false, message: Errors.ALREADY_EXISTS,
+//                 loggedThrough: isLoggedAlready?.loggedThrough
+//             })
+//         }
+
+//        return await session.withTransaction(async()=>{
+//             if(credentials?.picture?.data){
+//                 console.log(`picture:`, credentials?.picture?.data?.url);
+//                 let uploadPicture = await handleUploadPicture(credentials?.picture?.data?.url)
+//                 if(!uploadPicture?.success) return console.log(`uploading error: `,uploadPicture?.message)
+//                 credentials.picture.data.url = uploadPicture?.url;
+//             }
+//             let user = {
+//                 email: credentials?.email,
+//                 fullName: credentials?.name,
+//                 picture: credentials?.picture?.data?.url,
+//                 loggedThrough:'Facebook',
+//                 bio: null,
+//                 phone: null,
+//             }
+//             const refreshToken = generateRefreshToken(user);
+//             const accessToken = generateAccessToken(user);
+
+//             const loginUser = await Login.create([{
+//                 email: user.email,
+//                 loggedThrough: user.loggedThrough,
+//                 refreshToken: refreshToken,
+//                 userName: userName,
+
+
+//             }], {session})
+//             const USER = await User.create([
+//                 user
+//             ], {session});
             
             
-            console.log(`success`)
+//             console.log(`success`)
        
 
     
-            res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: user?.loggedThrough}});
-           await session.commitTransaction(); 
-            session.endSession()
-        })
+//             res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: user?.loggedThrough}});
+//            await session.commitTransaction(); 
+//             session.endSession()
+//         })
     
-    } catch (error) {
-        return checkError(error,res)
-    }
-})
+//     } catch (error) {
+//         return checkError(error,res)
+//     }
+// })
 
 
 router.route('/').post(async(req,res)=>{
@@ -94,7 +94,7 @@ router.route('/').post(async(req,res)=>{
         const {credentials} = req.body
         if(!credentials) return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS,arguments:'credentials'})
 
-        return conn.transaction(async()=>{
+        return await conn.transaction(async()=>{
 
             const isLoggedAlready = await User.findOne({email: credentials?.email}).session(session)
             // if(isLoggedAlready) 
@@ -108,27 +108,24 @@ router.route('/').post(async(req,res)=>{
                 }
                 user = {
                     email: isLoggedAlready?.email,
-                    fullName: isLoggedAlready?.fullName,
-                    picture: credentials?.picture?.data?.url || isLoggedAlready?.picture,
+                    userName: isLoggedAlready?.userName,
+                    picture: credentials?.picture?.data?.url ?? isLoggedAlready?.picture,
                     loggedThrough:isLoggedAlready?.loggedThrough,
                     bio: isLoggedAlready?.bio,
-                    phone: isLoggedAlready?.bio,
+                    phone: isLoggedAlready?.phone,
                     channels: isLoggedAlready?.channels ?? []
                 }
                 console.log(`USER IS LOGGED THROUGH: ${user?.loggedThrough}; email: ${user?.email}`)
             } else {
                  user = {
                     email: credentials?.email,
-                    fullName: credentials?.name,
-                    picture: credentials?.picture?.data?.url || credentials?.picture,
+                    userName: credentials?.name,
+                    picture: credentials?.picture?.data?.url ?? credentials?.picture,
                     loggedThrough:'Facebook',
                     bio: credentials?.bio ?? '',
-                    phone: credentials.phone ?? '',
                     channels:  []
                 };
-                let newUser = await User.create({user}).session(session)
-                
-                
+                let newUser = await User.create([user],{session})
             }
             const accessToken =await  generateAccessToken({email:user?.email});
             res.status(201).send({success:true,data:{accessToken, loggedThrough: user?.loggedThrough}});
