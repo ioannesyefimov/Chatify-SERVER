@@ -40,6 +40,7 @@ currentChannel.on('connection', (socket)=>{
     console.log(`User connected ${socket.id}`)
     socket.on('join_channel',async data=>{
         socket.join(data.room)
+
         console.log(`JOINED`, data.room);
         socket.emit('join_channel',{data:{room:data.room}})
     });
@@ -51,7 +52,7 @@ currentChannel.on('connection', (socket)=>{
 
     socket.on('get_channel',async(data)=>{
         console.log(`data:`,data);
-        let req = {query :{userEmail:data?.userEmail,channelName: data?.channelName}}
+        let req = {query :{userEmail:data?.userEmail,channel_id: data?.channel_id}}
         let response = await getChannel(req)
         console.log(`RESPONSE:`, response);
         console.log(`ID:`, socket.id);

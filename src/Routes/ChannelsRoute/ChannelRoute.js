@@ -201,7 +201,7 @@ export const leaveChannel= async(req)=>{
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
                 return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-                .then(channel=>response = {success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`}})
+                .then(channel=>response = {success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`,channel:response}})
                 .catch(err=>throwErr(err)) 
             }
         
@@ -230,7 +230,7 @@ export const leaveChannel= async(req)=>{
                 isThereAdmins = PopulatedChannel?.members[randomUserInd]
             }
             let PopulatedUser = await populateCollection(LoggedUser,'User');
-           
+            let user = await User.findOne()
             response= {success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}}
         })
         return response
@@ -345,7 +345,7 @@ export const getUserChannels = async(req)=>{
         }
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
-            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
+            let PopulatedChannels = await Promise.all(channels.map(async channel=>await populateCollection(channel,'Channel')))
             return {success:true,data:{user: LoggedUser,channels: PopulatedChannels}}
         }
         let PopulatedUser = await populateCollection(LoggedUser,'User');
@@ -370,33 +370,28 @@ router.route('/userChannels').get(async(req,res) =>{
 export const getChannel =async(req)=>{
     try {
         console.log(`REQ:`, req);
-        const {channelName,userEmail}=req.query
-        if(!channelName){
+        const {channel_id,userEmail}=req.query
+        if(!channel_id || !userEmail){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
         }
-        let isLogged = await User.findOne({userEmail});
-        let channels = await Channel.find({channelName});
-        if(isLogged) {
-            channels = await Channel.find({channelName, "members.member":isLogged._id })
-        }
-        console.log(`channels: `, channels)
-        if(channels.length === 0){
-             throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
-        }
-        if(channels.length > 1){
-            // loop through every channel that user is member of and then send it 
-            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return {success:true,data:{channels: PopulatedChannels}}
-        }
-       
-        let PopulatedChannels = await populateCollection(channels[0], 'Channel');
+        let isLogged = await User.findOne({email:userEmail});
+        if(!isLogged) throwErr({name:Errors.NOT_SIGNED_UP, code:400});
+
+        let isCreated = await Channel.findOne({_id:channel_id});
+        if(!isCreated) throwErr({name: Errors.CHANNEL_NOT_FOUND,code:404})
+
+        let channels = await Channel.findOne({_id:channel_id, "members.member":isLogged._id });
+        console.log(`CHANNELS:`, channels);
+        console.log(`isLogged:`, isLogged);
+        if(!channels) throwErr({name: Errors.NOT_A_MEMBER,code:400,arguments:{channel_id:isCreated._id}})
+        let PopulatedChannels = await populateCollection(channels, 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
-        return {success:true,data:{channels: PopulatedChannels}}
+        return {success:true,data:{channel: PopulatedChannels,user:isLogged}} 
     } catch (error) {
          return checkErrWithoutRes(error)
     }
 }
-router.route('/channel/:channelName').get(async(req,res) =>{
+router.route('/channel/:channelId').get(async(req,res) =>{
     let  response = await getChannel(req);
     if(response.success){
         res.status(200).send(response)
@@ -416,7 +411,8 @@ export const getChannels = async()=>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-            return {success:true,data:{channels: [PopulatedChannels]}}
+
+            return {success:true,data:{channels: PopulatedChannels}}
         }
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
