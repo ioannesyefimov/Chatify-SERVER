@@ -1,24 +1,20 @@
-import express from 'express'
+import express, { response } from 'express'
 import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
-import jwt from 'jsonwebtoken'
-
-import { checkError, Errors, isTrue } from '../../../utils.js'
-import {Login,User} from '../../../MongoDb/models/index.js'
-import { serverValidatePw } from '../RegisterRoute.js'
-import { validatePassword, verifyAccessToken } from '../../../utils.js'
-import { conn } from '../../../MongoDb/connect.js'
-import { generateAccessToken } from '../tokenRoute.js'
-import { validateNumber } from '../../../MongoDb/models/user.js'
-import { handleUploadPicture } from '../../uploadRoute/uploadRoute.js'
+import { checkError, checkErrWithoutRes, Errors, isTrue, throwErr } from '../../utils.js'
+import {Login,User} from '../../MongoDb/models/index.js'
+import { serverValidatePw } from '../Authentication/RegisterRoute.js'
+import { validatePassword, verifyAccessToken } from '../../utils.js'
+import { conn } from '../../MongoDb/connect.js'
+import { generateAccessToken } from '../Authentication/tokenRoute.js'
+import { validateNumber } from '../../MongoDb/models/user.js'
+import { handleUploadPicture } from '../uploadRoute/uploadRoute.js'
 
 dotenv.config();
 
 
 const router = express.Router()
-
-router.route('/delete').delete(async(req,res)=>{
-
+export async function deleteAccount (req){
     try {
         console.log(`DELETE USER IS WORKING`)
         
@@ -27,15 +23,15 @@ router.route('/delete').delete(async(req,res)=>{
         if(!userEmail || !accessToken ) throw new Error({success:false, message:Errors.MISSING_ARGUMENTS})
         
         const isValidToken = await verifyAccessToken(accessToken);
-        if(!isValidToken?.success) return res.status(400).send({success:false,message:isValidToken?.err?.message || isValidToken?.err})
+        if(!isValidToken?.success) throwErr({success:false,message:isValidToken?.err?.message || isValidToken?.err})
         
         const isLogged = await Login.findOne({email:userEmail});
         if(!isLogged) {
-            return res.status(404).send({success:false, message:Errors.NOT_FOUND})
+           throwErr({success:false, message:Errors.NOT_FOUND})
         };
         const session = await conn.startSession()
-      
-        return await session.withTransaction(async()=>{
+        let response 
+         await session.withTransaction(async()=>{
             console.log(`isLogged: `, isLogged)
             if(isLogged?.loggedThrough === deletedThrough && isLogged?.loggedThrough !== 'Internal'){
                 let isDeletedLOGIN = await Login.deleteOne({email: userEmail}, {session});
@@ -45,16 +41,16 @@ router.route('/delete').delete(async(req,res)=>{
                     await session.abortTransaction()
                     console.log(`USER:`, isDeletedUSER);
                     console.log(`LOGIN:`, isDeletedLOGIN);
-                    return res.status(500).send({success:false, message: Errors?.ABORTED_TRANSACTION})
+                    throwErr({success:false, message: Errors?.ABORTED_TRANSACTION})
                 }
                 console.log(`USER:`, isDeletedUSER);
                 console.log(`LOGIN:`, isDeletedLOGIN);
-                return res.status(200).send({success:true, data: { message:`USER_IS_DELETED`}})
-
+                response = ({success:true, data: { message:`USER_IS_DELETED`}})
+                return
             }
             if(!updatedParams?.password && isLogged?.password){
                 session.abortTransaction()
-                return res.status(400).send({success:false, message:Errors.MISSING_ARGUMENTS})
+                return throwErr({success:false, message:Errors.MISSING_ARGUMENTS})
             }
             const isValidPw = bcrypt.compareSync(updatedParams?.password, isLogged?.password)
             console.log("ISVALID:",isValidPw)
@@ -64,22 +60,31 @@ router.route('/delete').delete(async(req,res)=>{
 
             if(!isDeletedLOGIN || !isDeletedUSER) {
                 session.abortTransaction()
-                return res.status(500).send({success:false,message:`USER_ISN'T_DELETED`})
+               throwErr({success:false,message:`USER_ISN'T_DELETED`})
             }
             console.log(`USER:`, isDeletedUSER);
             console.log(`LOGIN:`, isDeletedLOGIN);
             console.log(isLogged);
             await session.commitTransaction(); 
             session.endSession()
-             res.status(200).send({success:true, data: { message:`USER_IS_DELETED`}})
+             response = {success:true, data: { message:`USER_IS_DELETED`}}
 
         })
+        return response
 
         
     } catch (error) {
-        console.log(error)
-         checkError(error,res)
+        return checkErrWithoutRes(error)
     }
+}
+router.route('/delete').delete(async(req,res)=>{
+    let response = await deleteAccount(req);
+    if(response?.success){
+        res.status(200).send(response)
+    }else {
+        res.status(500).send(response)
+    }
+    
 
 })
 

@@ -14,6 +14,7 @@ export const createMessage = async(req)=>{
     
     try {
         console.log(`body:`, req.body);
+        const session = await conn.startSession()
         const {userEmail,accessToken,channelId,message} = req.body // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
@@ -31,7 +32,7 @@ export const createMessage = async(req)=>{
             throwErr({name: Errors.NOT_A_MEMBER, code:404})
         }
         let response 
-         await conn.transaction(async(session)=>{
+         await conn.transaction(async()=>{
             
             const newMessage =  new Message({
                 message
@@ -39,9 +40,9 @@ export const createMessage = async(req)=>{
 
             newMessage.user = LoggedUser
             newMessage.channelAt = isCreated
-            await newMessage.save({session})
+            await newMessage.save(session)
             isCreated?.messages.push(newMessage)
-            await isCreated.save({session})
+            await isCreated.save(session)
             console.log(`newMessage:`, newMessage)
             // isCreatedawait ?.save({session})
         // let PopulatedUser = await populateCollection(LoggedUser, "User");
@@ -55,13 +56,13 @@ export const createMessage = async(req)=>{
         await session.endSession()
 
     })
-    return {success:true,data:{message:newMessage,channels:populatedMessages}}
 
     return response ?? throwErr({name:'Transaction failed', code:500})
 } catch (error) {
         return checkErrWithoutRes(error)
     } 
 }
+
 
 router.route('/create').post(async(req,res) =>{
   let response = await createMessage(req)
@@ -77,7 +78,7 @@ router.route('/create').post(async(req,res) =>{
 export const deleteMessage = async(req)=>{
     try {
         const {userEmail,accessToken,channel_id,message_id,timeStamp} = req.query
-        // const  isValidToken = await verifyAccessToken(accessToken) 
+        const session = await conn.startSession()
         let messageDate
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
         let ARGUMENTS = {channel_id,userEmail,message_id}
@@ -93,7 +94,7 @@ export const deleteMessage = async(req)=>{
 
         let response
 
-         await conn.transaction(async (session)=>{
+         await conn.transaction(async ()=>{
 
             let LoggedUser = await User.findOne({email:userEmail}).session(session);
             if(!LoggedUser ) 
@@ -122,14 +123,14 @@ export const deleteMessage = async(req)=>{
 
             // } else if (!messageDate){
                 let deleted=  await Message.findOneAndDelete({_id:message_id,user:LoggedUser._id}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
-
+                if(!deleted) throwErr(deleted)
             // }
             if(!msg && messageDate?.day){
                 throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message_id, by: LoggedUser?.userName, time: messageDate ?? messageDate}})
             }
             isMember.messages?.pull(message_id)
             await isMember.save({session})
-            response =  {success:true,data:{message:`"${deleted?.message}" has been deleted from "${isMember?.channelName}"`, channel: populatedChannel}}
+            response =  {success:true,data:{message:deleted, channel: populatedChannel}}
         })
 
         return response ?? throwErr({name:'Transaction failed', code:500})
@@ -148,6 +149,8 @@ router.route('/delete').delete(async(req,res)=>{
 
 export const getMessages = async(req) =>{
     try {
+        const session = await conn.startSession()
+
         const {userEmail} = req.query  
         if(!userEmail){
             throwErr({name:Errors.MISSING_ARGUMENTS,code:404,arguments:'email'})
