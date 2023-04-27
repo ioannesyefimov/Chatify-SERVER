@@ -9,7 +9,7 @@ import { createDate, populateCollection,Errors, APIFetch } from '../utils.js'
 import { getChannel, getUserChannels } from '../Routes/ChannelsRoute/ChannelRoute.js'
 import { createMessage, deleteMessage } from '../Routes/MessagesRoute/MessageRoute.js'
 
-import { APIFetch } from '../utils.js'
+
 export const app = express();
 
 
@@ -64,20 +64,24 @@ currentChannel.on('connection', (socket)=>{
 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
-       
-        if(!data?.user) return
         console.log(`ROOM:`, data.room);
         
         let response = await createMessage({body:{
             userEmail:data?.user.email, channelId:data?.channel_id, message: data?.message
+
         }})        
         console.log(`RESPONSE:`, response);
 
         if(!response.success){
+
+        };
+        console.log(`RESPONSE`, response);
+        if(!response?.success){
+
               return   currentChannel.in(data.room).emit('receive_message',response)
         }
         currentChannel.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
-    });
+    })
     socket.on('delete_message',async(data)=>{
         console.log(`DATA:`, data);
             let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});

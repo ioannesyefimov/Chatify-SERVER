@@ -13,6 +13,7 @@ const router = express.Router()
 export const createMessage = async(req)=>{
     
     try {
+        console.log(`body:`, req.body);
         const {userEmail,accessToken,channelId,message} = req.body // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
@@ -48,8 +49,13 @@ export const createMessage = async(req)=>{
         console.log(`channels:`, populatedMessages)
         // console.log(`user:`, PopulatedUser)
 
+
         response= {success:true, data: {message:newMessage, channel: populatedMessages}}
+
+        await session.endSession()
+
     })
+    return {success:true,data:{message:newMessage,channels:populatedMessages}}
 
     return response ?? throwErr({name:'Transaction failed', code:500})
 } catch (error) {
@@ -84,7 +90,9 @@ export const deleteMessage = async(req)=>{
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
+
         let response
+
          await conn.transaction(async (session)=>{
 
             let LoggedUser = await User.findOne({email:userEmail}).session(session);
