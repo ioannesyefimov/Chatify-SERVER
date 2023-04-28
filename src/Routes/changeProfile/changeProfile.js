@@ -88,35 +88,29 @@ router.route('/delete').delete(async(req,res)=>{
 
 })
 
-router.route('/').post(async(req,res)=>{
-
+export async function profileChange(req){
     try {
         const session = await conn.startSession()
     
-        const {userEmail, accessToken, updatedParams } = req.body 
+        const {accessToken, updatedParams } = req.body 
         console.log(`reg body:`, req.body)
 
         if(!updatedParams || !isTrue(updatedParams).is) {
-            return res.status(400).send({success:false,message:Errors.MISSING_ARGUMENTS})
+            return throwErr({success:false,message:Errors.MISSING_ARGUMENTS})
         } 
+        const isValidToken = await verifyAccessToken(accessToken);
+        if(isValidToken?.err) throwErr({success:false,message:isValidToken?.err?.message})
+        
+        
+        const isLogged = await User.findOne({email:isValidToken?.result?.email});
             
+        if(!isLogged)throwErr({success:false, message:Errors.NOT_FOUND})
         let changesArray = {
         }
-
         console.log(req.body)
-        const isLogged = await User.findOne({email:userEmail});
-    
-        if(!isLogged) {
-            return res.status(404).send({success:false, message:Errors.NOT_FOUND})
-        }
-    
-        // validate if user has been signed up through social 
-        // if(isLogged[0].loggedThrough !=='Internal' && !oldPassword){
-        const isValidToken = await verifyAccessToken(accessToken);
-        if(isValidToken?.err) throw new Error({success:false,message:isValidToken?.err?.message})
         console.log(`data :`, updatedParams)
-
-        return await session.withTransaction(async()=>{
+        let response
+         await session.withTransaction(async()=>{
             console.log(`transaction started`)
 
             if(updatedParams?.email){
@@ -134,7 +128,6 @@ router.route('/').post(async(req,res)=>{
                 
             }
             if(updatedParams.fullName){
-             
                   let user=   await User.updateOne({email: userEmail}, {fullName :updatedParams?.fullName },  {upsert:true}, {session});
                 if (user?.modifiedCount === 0 && user?.acknowledged ){
                     changesArray.newFullname = `${updatedParams?.fullName}  hasn't been applied`
@@ -143,7 +136,6 @@ router.route('/').post(async(req,res)=>{
                     changesArray.newFullName = updatedParams?.fullName
                      console.log(changesArray.newFullName)
                 }
-                
             }
             if(updatedParams?.phone){
                 let user=   await User.updateOne({email: userEmail}, {phone :updatedParams?.phone },  {upsert:true}, {session});
@@ -220,17 +212,21 @@ router.route('/').post(async(req,res)=>{
             console.log(`token: ${accessToken}`);
             await session.commitTransaction(); 
             session.endSession()
-            return res.status(200).send({success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken}})
+            response = {success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken}}
 
         })
-
+        return response ?? throwErr({name:'TRANSCATION FAILED', code:500})
     } catch (error) {
-        console.log(error)
-        if(error.name === 'ValidationError'){
-          return checkError(error,res)
-        }
-        return res.status(500).send({success:false,message:error |`SOMETHING WENT WRONG`})
+       checkErrWithoutRes(error)
+    }
+}
 
+router.route('/').post(async(req,res)=>{
+    let response = await profileChange(req);
+    if(response?.success){
+        res.status(200).send(response)
+    }else {
+        res.status(500).send(response)
     }
 })
 

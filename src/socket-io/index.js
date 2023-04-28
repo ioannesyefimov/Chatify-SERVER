@@ -67,7 +67,7 @@ currentChannel.on('connection', (socket)=>{
         console.log(`ROOM:`, data.room);
         
         let response = await createMessage({body:{
-            userEmail:data?.sessionuser.email, channelId:data?.channel_id, message: data?.message
+            userEmail:data?.user.email, channelId:data?.channel_id, message: data?.message
 
         }})        
         console.log(`RESPONSE:`, response);
