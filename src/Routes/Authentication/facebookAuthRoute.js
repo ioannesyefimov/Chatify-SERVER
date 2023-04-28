@@ -109,7 +109,7 @@ router.route('/').post(async(req,res)=>{
                 user = {
                     email: isLoggedAlready?.email,
                     userName: isLoggedAlready?.userName,
-                    picture: credentials?.picture?.data?.url ?? isLoggedAlready?.picture,
+                    picture:isLoggedAlready?.picture ?? credentials?.picture?.data?.url,
                     loggedThrough:isLoggedAlready?.loggedThrough,
                     bio: isLoggedAlready?.bio,
                     phone: isLoggedAlready?.phone,

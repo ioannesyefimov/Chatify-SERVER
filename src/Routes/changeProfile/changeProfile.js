@@ -107,6 +107,7 @@ export async function profileChange(req){
         if(!isLogged)throwErr({success:false, message:Errors.NOT_FOUND})
         let changesArray = {
         }
+        let {email} = isValidToken?.result
         console.log(req.body)
         console.log(`data :`, updatedParams)
         let response
@@ -114,8 +115,8 @@ export async function profileChange(req){
             console.log(`transaction started`)
 
             if(updatedParams?.email){
-                let user=   await User.updateOne({email: userEmail}, {email :updatedParams?.email },  {upsert:true}, {session});
-                let login = await Login.updateOne({email: userEmail}, {email :updatedParams?.email },  {upsert:true}, {session});
+                let user=   await User.updateOne({email: email}, {email :updatedParams?.email },  {upsert:true}, {session});
+                let login = await Login.updateOne({email: email}, {email :updatedParams?.email },  {upsert:true}, {session});
                 console.log('login',login);
                 console.log('user',user);
                 if (user?.modifiedCount === 0 && login?.modifiedCount === 0 (user?.acknowledged && !login?.acknowledged)){
@@ -127,18 +128,18 @@ export async function profileChange(req){
                 }
                 
             }
-            if(updatedParams.fullName){
-                  let user=   await User.updateOne({email: userEmail}, {fullName :updatedParams?.fullName },  {upsert:true}, {session});
+            if(updatedParams.userName){
+                  let user=   await User.updateOne({email: email}, {userName :updatedParams?.userName },  {upsert:true}, {session});
                 if (user?.modifiedCount === 0 && user?.acknowledged ){
-                    changesArray.newFullname = `${updatedParams?.fullName}  hasn't been applied`
-                     console.log(changesArray.newFullName)
+                    changesArray.newUserName = `${updatedParams?.userName}  hasn't been applied`
+                     console.log(changesArray.newuserName)
                 } else if (user?.modifiedCount != 0){
-                    changesArray.newFullName = updatedParams?.fullName
-                     console.log(changesArray.newFullName)
+                    changesArray.newUserName = updatedParams?.userName
+                     console.log(changesArray.newuserName)
                 }
             }
             if(updatedParams?.phone){
-                let user=   await User.updateOne({email: userEmail}, {phone :updatedParams?.phone },  {upsert:true}, {session});
+                let user=   await User.updateOne({email: email}, {phone :updatedParams?.phone },  {upsert:true}, {session});
                 if (user?.modifiedCount === 0 && user?.acknowledged ){
                     changesArray.newPhone = `${updatedParams?.phone}  hasn't been applied`
                      console.log(changesArray.phone)
@@ -148,7 +149,7 @@ export async function profileChange(req){
                 }
             }
             if(updatedParams?.bio){
-                let user=   await User.updateOne({email: userEmail}, {bio :updatedParams?.bio },  {upsert:true}, {session});
+                let user=   await User.updateOne({email: email}, {bio :updatedParams?.bio },  {upsert:true}, {session});
                 console.log(user);
                 if (user?.modifiedCount === 0 && user?.acknowledged){
                     changesArray.newBio = `${updatedParams?.bio}  hasn't been applied`
@@ -165,7 +166,7 @@ export async function profileChange(req){
                 let uri = await handleUploadPicture(updatedParams?.picture);
                 if(!uri?.success) return res.status(400).send({success:false, message: {picture : uri?.message} })
 
-                let user=   await User.updateOne({email: userEmail}, {picture: uri?.url },  {upsert:true}, {session});
+                let user=   await User.updateOne({email: email}, {picture: uri?.url },  {upsert:true}, {session});
                 console.log(user);
                 if (user?.modifiedCount === 0 && user?.acknowledged){
                     changesArray.newPicture = `${updatedParams?.picture}  hasn't been applied`
@@ -179,13 +180,13 @@ export async function profileChange(req){
             }
             if(updatedParams?.password){
                 console.log(`token:`, isValidToken);
-                const isValid = await serverValidatePw(isValidToken?.fullName,userEmail,updatedParams?.password)
-                if(!isValid?.success) return res.status(400).send({success:false, message: {password : isValid?.message}}) 
+                const isValid = await serverValidatePw(isValidToken?.userName,email,updatedParams?.password)
+                if(!isValid?.success) throwErr({success:false, message: {password : isValid?.message}}) 
                 console.log(isValid);
                 const salt = bcrypt.genSaltSync(10);
                 const hashPw = bcrypt.hashSync(updatedParams?.password, salt)
                 console.log(`before db search`);
-                const user = await Login.updateOne({email:userEmail}, {password: hashPw},  {upsert:true}, {session})
+                const user = await Login.updateOne({email:email}, {password: hashPw},  {upsert:true}, {session})
                 console.log(`after db search`);
                 console.log(user)
                 if (user?.modifiedCount === 0 && user?.acknowledged){
@@ -197,11 +198,11 @@ export async function profileChange(req){
                 }
                 
             }
-            if(Object.keys(changesArray).length === 0 && changesArray.constructor === Object) return res.status(400).send({success:false, message:`CHANGES HAVEN'T BEEN APPLIED`})
+            if(Object.keys(changesArray).length === 0 && changesArray.constructor === Object) throwErr({success:false,name:Errors.CHANGES_NOT_APPLIED, message:`CHANGES HAVEN'T BEEN APPLIED`})
             console.log(changesArray)
             let userData = {
               email:isLogged[0]?.email,
-              fullName: isLogged[0]?.fullName,
+              userName: isLogged[0]?.userName,
               bio:isLogged[0]?.bio ,
               phone:isLogged[0]?.phone ,
               picture: isLogged[0]?.picture,
