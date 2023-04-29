@@ -67,6 +67,12 @@ router.route('/').post(async(req,res) =>{
                     phone: isValidToken?.result?.phone,
                 }
                 let newUser = await User.create([user],{session});
+                let welcomeChannel = await Channel.findOne({channelName:'Welcome'});
+                if(welcomeChannel){
+    
+                    newUser.channels.push(welcomeChannel)
+                   await newUser.save({session})
+                }
                 return res.status(200).send({success:true,data:{user:newUser,message:'USER HAS BEEN SIGNED UP'}})
             }
         })

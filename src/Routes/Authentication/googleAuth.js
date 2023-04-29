@@ -15,53 +15,6 @@ dotenv.config()
 
 const router = express.Router()
 
-export const handleGoogleSingin = async(credentials, res) =>{
-    try {
-            // console.log(req.body.credential)
-            const verificationResponse = await verifyGoogleToken(credentials)
-            console.log(verificationResponse)
-            if(verificationResponse.error) {
-                return res.status(400).send({success:false,message: verificationResponse.error})
-            };
-
-            const profile =  verificationResponse?.payload;
-            console.log(profile)
-    
-            const dbUser = await Login.findOne({email:profile?.email})
-            // console.log(existsInDb)
-    
-            if(!dbUser){
-                return res.status(400).json({
-                    message: "You are not registered. Please sign up."
-                });
-            }
-            let user = {
-
-                fullName: `${profile?.given_name} ${profile?.family_name}`,
-                picture: profile?.picture,
-                email: profile?.email,
-                bio: profile?.bio,
-                phone: profile?.phone,
-                loggedThrough: 'Google'
-               
-            }
-            if(dbUser?.loggedThrough !== 'Google'){
-                return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: dbUser?.loggedThrough})
-            }
-        
-
-            res.status(201).send({
-                success:true,
-                 data:{
-                    loggedThrough: 'Google',
-                    user: user,
-                    accessToken: generateAccessToken(user)
-                }
-            });
-    } catch (error) {
-        return checkError(error,res)
-    }
-}
 
 router.route('/').post(async(req,res)=>{
     
@@ -106,6 +59,12 @@ router.route('/').post(async(req,res)=>{
                     dbUser = await User.create([
                         user
                     ],{session})
+                    let welcomeChannel = await Channel.findOne({channelName:'Welcome'});
+                    if(welcomeChannel){
+        
+                        dbUser.channels.push(welcomeChannel)
+                       await dbUser.save({session})
+                    }
                 }
                 let user = {
     

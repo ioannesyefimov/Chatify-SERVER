@@ -21,7 +21,7 @@ export const createChannel = async(req) =>{
         }
        
         const  isValidToken = await verifyAccessToken(accessToken) 
-        if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
         if(!LoggedUser ){

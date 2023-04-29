@@ -3,7 +3,7 @@ import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
 import {checkError, validatePassword, Errors, validateIsEmpty, throwErr } from '../../utils.js'
-import {conn,User,Login} from '../../MongoDb/index.js'
+import {conn,User,Login, Channel} from '../../MongoDb/index.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 
 dotenv.config();
@@ -91,10 +91,14 @@ router.route('/').post(async(req,res)=>{
                     
                 }
             ], {session});
-            
+            let welcomeChannel = await Channel.findOne({channelName:'Welcome'});
+            if(welcomeChannel){
+
+                USER.channels.push(welcomeChannel)
+              await USER.save({session})
+            }
             
             console.log(`register was successful`)
-    
             res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: loggedThrough}});
         })
     

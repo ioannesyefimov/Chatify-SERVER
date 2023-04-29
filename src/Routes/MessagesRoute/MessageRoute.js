@@ -101,7 +101,7 @@ export const deleteMessage = async(req)=>{
             {
                 throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
             }
-            let msg = await Message.findOne({_id:message_id,user:LoggedUser._id}).session(session);
+            let msg = await Message.findOne({_id:message_id,user:LoggedUser}).session(session);
             let isMember = await Channel.findOne({_id:channel_id, "members.member": LoggedUser._id}).session(session);
             console.log(isMember)
             if(!isMember){
@@ -122,7 +122,7 @@ export const deleteMessage = async(req)=>{
                 // await Message.findOneAndDelete({message,user:LoggedUser._id,createdAt: messageDate}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
 
             // } else if (!messageDate){
-                let deleted=  await Message.findOneAndDelete({_id:message_id,user:LoggedUser._id}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
+                let deleted=  await Message.findOneAndDelete({_id:message_id,user:LoggedUser}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
                 if(!deleted) throwErr(deleted)
             // }
             if(!msg && messageDate?.day){
