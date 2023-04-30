@@ -20,7 +20,7 @@ export const createChannel = async(req) =>{
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        const  isValidToken = await verifyAccessToken(accessToken) 
+        const  isValidToken = await verifyAccessToken(accessToken);
         if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
@@ -336,13 +336,16 @@ export const getUserChannels = async(req)=>{
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
         let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser ) throwErr({err:{name: Errors.NOT_FOUND,code:404}})
+        if(!LoggedUser ){
+            throwErr({err:{name: Errors.NOT_SIGNED_UP,code:404}})
+        }
+        console.log(`USER`,LoggedUser);
+        let channels = await Channel.find({'members.member':LoggedUser._id}) ;
+        console.log(`CHANNELS`, channels);
 
-        let channels = await Channel.find({"members.member": LoggedUser._id });
-        console.log(channels)
         if(channels.length === 0){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
-        }
+        }else
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>await populateCollection(channel,'Channel')))
@@ -352,7 +355,7 @@ export const getUserChannels = async(req)=>{
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        
-        return {success:true,data:{user:PopulatedUser,channels:[PopulatedChannels]}}
+        return {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
 
     } catch (error) {
          return checkErrWithoutRes(error)
@@ -403,16 +406,17 @@ router.route('/channel/:channelId').get(async(req,res) =>{
 export const getChannels = async()=>{
     try {
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-        let channels = await Channel.find({ });
+        let channels = await Channel.find({});
         console.log(channels)
         if(channels.length === 0){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
         }
         if(channels.length > 1){
+            let promises = channels.map(channel=>populateCollection(channel,'Channel'));
+            let populatedChannels =  await Promise.all(promises);
+            console.log(`populated`, populatedChannels);
             // loop through every channel that user is member of and then send it 
-            let PopulatedChannels = await Promise.all(channels.map(async channel=>populateCollection(channel,'Channel')))
-
-            return {success:true,data:{channels: PopulatedChannels}}
+            return {success:true,data:{channels:populatedChannels }}
         }
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
        

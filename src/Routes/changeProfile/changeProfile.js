@@ -20,7 +20,7 @@ export async function deleteAccount (req){
         
         const {userEmail, updatedParams,accessToken,deletedThrough} = req.body
         console.log(`body:`, req.body);
-        if(!userEmail || !accessToken ) throw new Error({success:false, message:Errors.MISSING_ARGUMENTS})
+        if(!userEmail || !accessToken ) throwErr({success:false, message:Errors.MISSING_ARGUMENTS})
         
         const isValidToken = await verifyAccessToken(accessToken);
         if(!isValidToken?.success) throwErr({success:false,message:isValidToken?.err?.message || isValidToken?.err})
@@ -77,7 +77,7 @@ export async function deleteAccount (req){
         return checkErrWithoutRes(error)
     }
 }
-router.route('/delete').delete(async(req,res)=>{
+router.route('/delete').put(async(req,res)=>{
     let response = await deleteAccount(req);
     if(response?.success){
         res.status(200).send(response)

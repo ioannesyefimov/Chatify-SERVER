@@ -3,7 +3,7 @@ import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
 import {checkError, validatePassword, Errors, validateIsEmpty, throwErr } from '../../utils.js'
-import {conn,User,Login, Channel} from '../../MongoDb/index.js'
+import {conn,User,Login, Channel, Role} from '../../MongoDb/index.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 
 dotenv.config();
@@ -47,7 +47,8 @@ router.route('/').post(async(req,res)=>{
             throwErr({name:Errors.MISSING_ARGUMENTS,code:400})
         }
         const isLoggedAlready = await Login.findOne({email: email});
-        if(isLoggedAlready !== null){
+        console.log(`ISLOGGGED`, isLoggedAlready);
+        if(isLoggedAlready){
             return isLoggedAlready?.loggedThrough !== 'INTERNAL' ? 
              res.status(400).send({
                 success:false, message: Errors.SIGNED_UP_DIFFERENTLY, 
@@ -91,14 +92,18 @@ router.route('/').post(async(req,res)=>{
                     
                 }
             ], {session});
-            let welcomeChannel = await Channel.findOne({channelName:'Welcome'});
-            if(welcomeChannel){
+            let memberRole = await Role.findOne({name:"Member"});
 
-                USER.channels.push(welcomeChannel)
-              await USER.save({session})
-            }
+            let welcomeChannel = await Channel.findOne({channelName:'Welcome'})
             
-            console.log(`register was successful`)
+            if(!welcomeChannel) throwErr({name:Errors.CHANNEL_NOT_FOUND,code:400})
+            
+            welcomeChannel?.members?.push({member:USER[0],roles:[memberRole]})
+            await welcomeChannel?.save({session})
+            
+            USER[0]?.channels?.push({channel:welcomeChannel})
+            
+            await USER[0]?.save({session})
             res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: loggedThrough}});
         })
     
