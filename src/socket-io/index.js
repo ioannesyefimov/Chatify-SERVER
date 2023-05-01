@@ -1,7 +1,6 @@
 import {Server} from 'socket.io'
 import https from 'https'
 import cors from 'cors'
-import path from 'path'
 import fs from 'fs'
 import express from 'express'
 
@@ -38,9 +37,33 @@ app.set('socketio',io)
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 const currentChannel = io.of('/currentChannel')
+const userIo = io.of('/user')
+const onlineUsers = []
+userIo.on('connection',(socket)=>{
+    console.log(`User connected to userSocket by ${socket.id}`)
+    socket.on('user_online',async data=>{
+        console.log(`useronline data`, data);
+        if(!data.userId) return console.error('missing userid')
+        onlineUsers.push({userId:data.userId,socketId:socket.id})
+        socket.join('onlineUsers')
+        socket.emit('user_online',{online:onlineUsers})
+        console.log(`CONNECTED SOCKET:`, Object.keys(io.of('user')?.sockets));
+    });
+    socket.on('disconnect', ()=>{
+        let filteredArr = onlineUsers.filter(user=>user.socketId !== socket.id)
+        onlineUsers = filteredArr
+        socket.leave('onlineUsers')
+        socket.emit('user_online',{online:onlineUsers})
+
+    });
+
+
+
+})
+
 
 currentChannel.on('connection', (socket)=>{
-    console.log(`User connected ${socket.id}`)
+    console.log(`User connected to currentChannel socket by  ${socket.id}`)
     socket.on('join_channel',async data=>{
         socket.join(data.room)
 
@@ -48,6 +71,7 @@ currentChannel.on('connection', (socket)=>{
         socket.emit('join_channel',{data:{room:data.room}})
     });
     socket.on('leave_channel',async(data)=>{
+        if(!data) return
         socket.leave(data)
         console.log(`USER ${data.user} left room "${data.id}"`);
     })
@@ -86,6 +110,6 @@ currentChannel.on('connection', (socket)=>{
             
     })
     socket.on('disconnect',()=>{
-        console.log(`Client ${socket.id} disconnected`);
+        console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
 })

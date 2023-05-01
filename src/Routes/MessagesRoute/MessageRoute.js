@@ -27,7 +27,7 @@ export const createMessage = async(req)=>{
         if(!isCreated) {
             throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
         }
-        isCreated = await Channel.findOne({channelId,"members.member": LoggedUser._id});
+        isCreated = await Channel.findOne({_id:channelId,"members.member": LoggedUser._id});
         if(!isCreated){
             throwErr({name: Errors.NOT_A_MEMBER, code:404})
         }
