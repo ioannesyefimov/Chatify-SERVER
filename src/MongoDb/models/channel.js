@@ -22,7 +22,7 @@ const ChannelSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Message'
     }],
-    channelDiscription:{type:String,trim:true,},
+    channelDiscription:{type:String,trim:true, default: 'Description is empty'},
     members: [
         {
             member: {

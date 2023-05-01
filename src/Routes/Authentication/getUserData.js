@@ -10,6 +10,7 @@ import Login from '../../MongoDb/models/login.js'
 import jwt from 'jsonwebtoken'
 import { checkError, checkErrWithoutRes, Errors, populateCollection, throwErr, verifyAccessToken } from '../../utils.js'
 import { generateAccessToken } from './tokenRoute.js'
+import { Channel } from '../../MongoDb/index.js'
 
 dotenv.config();
  
@@ -47,11 +48,13 @@ export const handleUserData = async(req) => {
             channels
             }
             console.log(populatedUser)
-
+            
+            let welcomeChannel = await Channel.findOne({"members.member":user.id,channelName:'Welcome'})
+            let redirectUrl = welcomeChannel ? `/chat?channel=${welcomeChannel?._id}` : null
             const GeneratedAccessToken = generateAccessToken({email: user?.email}) 
             return {
                 success:true,
-                data: {user, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
+                data: {user,redirectUrl, loggedThrough: populatedUser?.loggedThrough, accessToken: GeneratedAccessToken}
             }
             
     }catch(err){

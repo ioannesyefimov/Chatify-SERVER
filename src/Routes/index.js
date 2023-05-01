@@ -9,8 +9,8 @@ import changeProfileRoute from './changeProfile/changeProfile.js'
 import facebookRoute from './Authentication/facebookAuthRoute.js'
 import ChannelRoute from './ChannelsRoute/ChannelRoute.js'
 import MessageRoute from './MessagesRoute/MessageRoute.js'
-
+import ChannelChangeRoute from './ChannelsRoute/ChangeChannelRoute.js'
 import RoleRoute from './Roles/roles.js'
 export {
- RoleRoute,ChannelRoute, MessageRoute, facebookRoute, changeProfileRoute,SignInRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute
+ RoleRoute,ChannelRoute, MessageRoute, facebookRoute, changeProfileRoute,SignInRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute,ChannelChangeRoute
 }

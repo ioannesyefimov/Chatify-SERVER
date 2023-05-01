@@ -2,13 +2,11 @@ import express from 'express'
 import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
-import {checkError, validatePassword, Errors, validateIsEmpty, throwErr } from '../../utils.js'
+import {checkError, validatePassword, Errors, validateIsEmpty, throwErr, checkErrWithoutRes } from '../../utils.js'
 import {conn,User,Login, Channel, Role} from '../../MongoDb/index.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 
 dotenv.config();
- 
-
 const router = express.Router()
 
 export const  serverValidatePw = ( userName,email,password,res) =>{
@@ -38,8 +36,8 @@ export const  serverValidatePw = ( userName,email,password,res) =>{
 }
 
 router.route('/').post(async(req,res)=>{
-    const session = await conn.startSession()
     try {
+        const session = await conn.startSession()
 
         const {userName, email, password, picture, loggedThrough} = req.body
         let isEmpty = await validateIsEmpty({userName,email,password});
@@ -50,25 +48,25 @@ router.route('/').post(async(req,res)=>{
         console.log(`ISLOGGGED`, isLoggedAlready);
         if(isLoggedAlready){
             return isLoggedAlready?.loggedThrough !== 'INTERNAL' ? 
-             res.status(400).send({
-                success:false, message: Errors.SIGNED_UP_DIFFERENTLY, 
-                loggedThrough: isLoggedAlready?.loggedThrough
+             throwErr({
+                success:false, err: Errors.SIGNED_UP_DIFFERENTLY, 
+                arguments: {loggedThrough: isLoggedAlready?.loggedThrough}
             }) :
-            res.status(400).send({
-                success:false, message: Errors.ALREADY_EXISTS,
-                loggedThrough: isLoggedAlready?.loggedThrough
+            throwErr({
+                success:false, err: Errors.ALREADY_EXISTS,
+                arguments: {loggedThrough: isLoggedAlready?.loggedThrough}
             })
         }
         console.log('working')
-       return await conn.transaction(async(session)=>{
-            let user = {
-                email: email,
-                userName: userName,
-                picture: picture || null,
-                loggedThrough:loggedThrough,
-                bio: null,
-                phone: null,
-            }
+       return await conn.transaction(async()=>{
+            // let user = {
+            //     email: email,
+            //     userName: userName,
+            //     picture: picture || null,
+            //     loggedThrough:loggedThrough,
+            //     bio: null,
+            //     phone: null,
+            // }
             const refreshToken =await generateRefreshToken({email});
             const accessToken =await generateAccessToken({email});
 
@@ -108,10 +106,8 @@ router.route('/').post(async(req,res)=>{
         })
     
     } catch (error) {
-
-        console.log(`trigger err`)
-        console.log(error)
-         checkError(error,res)
+        let err = await checkErrWithoutRes(error,res);
+        res.status(500).send(err)
     }
 })
 

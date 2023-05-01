@@ -80,7 +80,7 @@ export const createChannel = async(req) =>{
         return response
 
     } catch (error) {
-         return checkErrWithoutRes(error,res)
+         return checkErrWithoutRes(error)
     }
 
 }
@@ -192,10 +192,10 @@ export const leaveChannel= async(req)=>{
         
             console.log(`LoggedUser:`, LoggedUser)
             console.log(`leavingChannel:`, channel)
-            let member = channel.members.find(member=>member.member.equals(LoggedUser._id))
+            let member = channel?.members?.find(member=>member?.member?.equals(LoggedUser._id))
             await channel.members.pull(member)
-            await LoggedUser.channels.pull({channel: channel._id});
             await channel.save({session});
+            await LoggedUser.channels.pull({channel: channel._id});
             await LoggedUser.save({session});
             let updatedChannel = channel
             if(updatedChannel.members.length === 0){
@@ -207,7 +207,7 @@ export const leaveChannel= async(req)=>{
         
 
             // filter channel and check whether it includes a role that is higher than Member.
-            let isThereAdmins = updatedChannel.members.some(member=> member.roles.some(role=> role.name === 'Admin' || role.name === 'Creator') === true) 
+            let isThereAdmins = updatedChannel?.members?.some(member=> member?.roles?.some(role=> role?.name === 'Admin' || role?.name === 'Creator') === true) 
             console.log(`CHANNEL : `, updatedChannel)
             console.log(`isthereadmins:`, isThereAdmins)
             let PopulatedChannel = await populateCollection(updatedChannel, 'Channel')
@@ -250,7 +250,7 @@ router.route('/leave').put(async(req,res)=>{
 export const deleteChannel = async(req)=>{
     try {
         const session = await conn.startSession()
-        const {accessToken, channelName, } = req.query
+        const {accessToken, channelName } = req.query
         let ARGUMENTS = {accessToken,channelName,}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         if(!isEmpty.success){
@@ -319,7 +319,7 @@ export const deleteChannel = async(req)=>{
 }
 
 router.route('/delete').delete(async(req,res)=>{
-    let  response = await leaveChannel(req);
+    let  response = await deleteChannel(req);
     if(response.success){
         res.status(200).send(response)
     } else {
@@ -413,6 +413,7 @@ export const getChannels = async()=>{
         }
         if(channels.length > 1){
             let promises = channels.map(channel=>populateCollection(channel,'Channel'));
+           console.log(`promises`,promises);
             let populatedChannels =  await Promise.all(promises);
             console.log(`populated`, populatedChannels);
             // loop through every channel that user is member of and then send it 

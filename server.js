@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv'
 
 import {Login,User} from './src/MongoDb/models/index.js'
 
-import { uploadRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
+import { uploadRoute,ChannelChangeRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
 import { getUsers } from './src/Routes/Authentication/getUserData.js'
@@ -32,6 +32,7 @@ app.use('/api/auth/user', UserDataRoute)
 app.use("/api/auth/token", TokenRoute)
 app.use("/api/upload", uploadRoute)
 app.use('/api/change', changeProfileRoute)
+app.use('/api/channel/change', ChannelChangeRoute)
 app.use('/api/channels', ChannelRoute)
 app.use('/api/messages', MessageRoute)
 
@@ -42,7 +43,7 @@ const PORT = process.env.PORT || 5050
 const StartServer = async ()=>{
     try {
         connectDB(process.env.MONGODB_URL);
-        server.listen(PORT, () => console.log(`Server is running on port ${PORT} `))
+        server.listen(PORT,'192.168.1.102', () => console.log(`Server is running on port ${PORT} `))
 
     } catch (error) {
         console.log(error)
