@@ -38,7 +38,7 @@ app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 const currentChannel = io.of('/currentChannel')
 const userIo = io.of('/user')
-const onlineUsers = []
+let onlineUsers = []
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
     socket.on('user_online',async data=>{
