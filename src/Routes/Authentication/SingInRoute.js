@@ -46,6 +46,7 @@ router.route('/').post(async(req,res)=>{
             
            
             const GeneratedToken = await generateAccessToken({email:USER?.email});
+            console.log(`TOKEN:`, GeneratedToken);
             return res.status(200).send({success:true, data: { accessToken: GeneratedToken, loggedThrough: USER?.loggedThrough}})
         }
     } catch (error) {

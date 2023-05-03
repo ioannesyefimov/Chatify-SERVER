@@ -23,10 +23,10 @@ export const handleUserData = async(req) => {
         if(!accessToken ) throwErr({name:MISSING_ARGUMENTS,arguments:'access token'})
         
         const  isValidToken = await verifyAccessToken(accessToken);
-        
-        if(!isValidToken?.success || !isValidToken.result.email) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-        
         console.log(`isvalid: `,isValidToken)
+        
+        if(!isValidToken?.success || !isValidToken?.result?.email) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        
         const USER = await User.findOne({email: isValidToken?.result.email})
         if(USER.loggedThrough !== loggedThrough)throwErr({success:false,message:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
         

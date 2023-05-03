@@ -2,7 +2,7 @@ import express from 'express'
 import * as dotenv from "dotenv"
 import  verifyGoogleToken  from './SocialAuth/googleAuth.js'
 import { checkError, Errors, throwErr} from '../../utils.js'
-
+import {Channel} from '../../MongoDb/index.js'
 import jwt from 'jsonwebtoken'
 // import User from '../../MongoDb/models/user.js'
 // import Login from '../../MongoDb/models/login.js'
@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken'
 import {User,Login} from '../../MongoDb/index.js'
 import { generateAccessToken, generateRefreshToken } from './tokenRoute.js'
 import { conn } from '../../MongoDb/connect.js'
+import { createChannel } from '../ChannelsRoute/ChannelRoute.js'
 
 dotenv.config()
 

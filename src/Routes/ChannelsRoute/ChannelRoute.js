@@ -12,18 +12,19 @@ const router = express.Router()
 export const createChannel = async(req) =>{
     try{
         const session = await conn.startSession()
-        const {accessToken,channelDiscription, channelName,channelAvatar} = req.body  // Bearer ACCESSTOKEN
-        let ARGUMENTS = {channelName,accessToken}
+        const {accessToken,userEmail,channelDiscription, channelName,channelAvatar} = req.body  // Bearer ACCESSTOKEN
+        let ARGUMENTS = {channelName,userEmail}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
        
-        const  isValidToken = await verifyAccessToken(accessToken);
-        if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
+        // const  isValidToken = await verifyAccessToken(accessToken);
+        // if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
-        let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
+        // let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
+        let LoggedUser = await User.findOne({email:userEmail});
         if(!LoggedUser ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 

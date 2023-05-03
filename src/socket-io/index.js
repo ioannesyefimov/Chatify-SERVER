@@ -104,12 +104,12 @@ currentChannel.on('connection', (socket)=>{
         console.log(`DATA:`, data);
             let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});
             if(!response?.success){
-                return   currentChannel.in(data.room).emit('receive_message',response)
+                return   currentChannel.in(data.channel_id).emit('delete_message',response)
           }
           currentChannel.in(data.channel_id).emit('delete_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
             
     })
-    socket.on('disconnect',()=>{
+    socket.on('disconnect',()=>{ 
         console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
 })

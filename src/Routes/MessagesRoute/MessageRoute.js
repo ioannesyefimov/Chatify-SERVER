@@ -123,7 +123,7 @@ export const deleteMessage = async(req)=>{
 
             // } else if (!messageDate){
                 let deleted=  await Message.findOneAndDelete({_id:message_id,user:LoggedUser}).session(session).then(data=>console.log(`message: `, data)).catch(err=>console.log(`ERROR MESSAGE:` , err))
-                if(!deleted) throwErr(deleted)
+                // if(!deleted) throwErr(deleted)
             // }
             if(!msg && messageDate?.day){
                 throwErr({name:Errors.NOT_FOUND,code:400, arguments: {message_id, by: LoggedUser?.userName, time: messageDate ?? messageDate}})
