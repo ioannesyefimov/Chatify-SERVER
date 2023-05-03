@@ -1,4 +1,4 @@
-Cimport express from 'express'
+import express from 'express'
 import * as dotenv from "dotenv"
 import bcrypt from 'bcrypt'
 
@@ -20,7 +20,7 @@ router.route('/').post(async(req,res)=>{
     try {
         const {email, password, accessToken, loggedThrough} = req.body
      
-        // // }
+        // // }s
         if(!email || !password)
         {
             throwErr({name:`INCORRECT_FORM_SUBMISSION` ,code:400})

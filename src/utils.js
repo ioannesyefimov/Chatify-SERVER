@@ -11,8 +11,8 @@ function validateName(name){
     }
     return true
 }
-export const createDate = ()=>{
-  const today = new Date();
+export const createDate = (date)=>{
+  const today = date ? new Date(date) : new Date();
 const DATE = {day:"",time:"",timeStamp:today.toISOString(),date:new Date(today)}
 const yyyy = today.getFullYear();
 let mm = today.getMonth() + 1; // Months start at 0!

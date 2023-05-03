@@ -15,7 +15,7 @@ export const createMessage = async(req)=>{
     try {
         console.log(`body:`, req.body);
         const session = await conn.startSession()
-        const {userEmail,accessToken,channelId,message} = req.body // Bearer ACCESSTOKEN
+        const {userEmail,accessToken,channelId,message,date} = req.body // Bearer ACCESSTOKEN
         // const  isValidToken = await verifyAccessToken(accessToken) 
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
 
@@ -40,6 +40,9 @@ export const createMessage = async(req)=>{
 
             newMessage.user = LoggedUser
             newMessage.channelAt = isCreated
+            if(date) {
+                newMessage.createdAt = createDate(date)
+            }
             await newMessage.save(session)
             isCreated?.messages.push(newMessage)
             await isCreated.save(session)
