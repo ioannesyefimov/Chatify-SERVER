@@ -1,6 +1,6 @@
 import express from 'express';
 import * as dotenv from 'dotenv';
-import {User,conn,Login,Channel,Permission,Role} from '../../MongoDb/index.js'
+import {User,conn,Login,Channel,Permission,Role, Message} from '../../MongoDb/index.js'
 import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken, containsEncodedComponents, checkErrWithoutRes } from '../../utils.js';
 import jwt from 'jsonwebtoken'
 import { handleUploadPicture } from '../uploadRoute/uploadRoute.js';
@@ -251,8 +251,8 @@ router.route('/leave').put(async(req,res)=>{
 export const deleteChannel = async(req)=>{
     try {
         const session = await conn.startSession()
-        const {accessToken, channelName } = req.query
-        let ARGUMENTS = {accessToken,channelName,}
+        const {accessToken, channel_id } = req.query
+        let ARGUMENTS = {accessToken,channel_id,}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
@@ -265,7 +265,7 @@ export const deleteChannel = async(req)=>{
         if(!LoggedUser ) {
             throwErr({name:Errors.NOT_FOUND, code:404})
         }
-        let channel = await Channel.findOne({channelName});
+        let channel = await Channel.findOne({_id: channel_id});
         if(!channel){
             throwErr({name:Errors.CHANNEL_NOT_FOUND, code: 404})
         }
@@ -293,7 +293,7 @@ export const deleteChannel = async(req)=>{
         }
         let response 
          await session.withTransaction(async()=>{
-            let deletedChannel = await Channel.findOneAndDelete({channelName},{session});
+            let deletedChannel = await Channel.findOneAndDelete({_id: channel_id},{session});
             await  User.find({"channels.channel": deletedChannel?._id})
             .then(async users=>{
                 for (let user of users){
@@ -303,7 +303,10 @@ export const deleteChannel = async(req)=>{
             })
             .catch(err=>throwErr(err))
             
-                
+                let deleteMessages = await Message.deleteMany({channelAt:deletedChannel._id})
+                if(deleteMessages.deletedCount === 0){
+                    console.log(`messages were not deleted`)
+                }
 
                 console.log(`deletedChannel: ` ,deletedChannel)
                 await session.commitTransaction()

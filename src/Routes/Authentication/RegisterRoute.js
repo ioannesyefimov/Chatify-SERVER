@@ -94,14 +94,15 @@ router.route('/').post(async(req,res)=>{
 
             let welcomeChannel = await Channel.findOne({channelName:'Welcome'})
             
-            if(!welcomeChannel) throwErr({name:Errors.CHANNEL_NOT_FOUND,code:400})
+            if(welcomeChannel){
+                welcomeChannel?.members?.push({member:USER[0],roles:[memberRole]})
+                await welcomeChannel?.save({session})
+                USER[0]?.channels?.push({channel:welcomeChannel})
+                await USER[0]?.save({session})
+            }
             
-            welcomeChannel?.members?.push({member:USER[0],roles:[memberRole]})
-            await welcomeChannel?.save({session})
             
-            USER[0]?.channels?.push({channel:welcomeChannel})
             
-            await USER[0]?.save({session})
             res.status(201).send({success:true,data:{accessToken, refreshToken, loggedThrough: loggedThrough}});
         })
     

@@ -57,15 +57,25 @@ router.route('/').post(async(req,res)=>{
                         channels:[]
                        
                     };
-                    dbUser = await User.create([
+                    let createdUser = await User.create([
                         user
                     ],{session})
+                    console.log(`created user`, createdUser);
+                    if(!createdUser)throwErr({name:'SOMETHING WENT WRONG'})
                     let welcomeChannel = await Channel.findOne({channelName:'Welcome'});
                     if(welcomeChannel){
-        
-                        dbUser.channels.push(welcomeChannel)
-                       await dbUser.save({session})
+                        await User.findOneAndUpdate({email:user.email},{$push:{channels:welcomeChannel}}).then(()=>console.log(`pushed welcome channel`)).catch(err=>console.log(`ERRR`,err))
                     }
+                    let accessToken = await generateAccessToken({email:user.email});
+    
+                    return res.status(201).send({
+                        success:true,
+                         data:{
+                            loggedThrough: 'Google',
+                            // user: user,
+                            accessToken
+                        }
+                    });
                 }
                 let user = {
     
@@ -77,9 +87,6 @@ router.route('/').post(async(req,res)=>{
                     loggedThrough: dbUser?.loggedThrough,
                     channels: dbUser?.channels
                 }
-                // if(dbUser?.loggedThrough !== req.body.loggedThrough){
-                //     return res.status(400).send({success:false, message: Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: dbUser?.loggedThrough})
-                // }
                 let accessToken = await generateAccessToken({email:user.email});
     
                 res.status(201).send({

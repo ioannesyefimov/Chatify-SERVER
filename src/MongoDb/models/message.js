@@ -26,9 +26,6 @@ const MessageSchema = new mongoose.Schema({
 
 MessageSchema.set('toJSON', {
     virtuals: true,
-    transform: (doc,result) => {
-        delete result._id
-    }
 })
 
 

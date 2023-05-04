@@ -80,17 +80,13 @@ router.route('/create').post(async(req,res) =>{
 
 export const deleteMessage = async(req)=>{
     try {
-        const {userEmail,accessToken,channel_id,message_id,timeStamp} = req.query
+        const {userEmail,accessToken,channel_id,message_id} = req.query
         const session = await conn.startSession()
-        let messageDate
         // if(isValidToken?.err) return res.status(400).send({success:false, message: isValidToken.err?.message || isValidToken?.err})
-        let ARGUMENTS = {channel_id,userEmail,message_id}
+        let ARGUMENTS = {channel_id,message_id}
         console.log(`reqQuery:`, req.query)
-        if(timeStamp){
-            messageDate = JSON?.parse(timeStamp.replaceAll('/', '.'))
-        }
+      
         const isEmpty = await validateIsEmpty(ARGUMENTS);
-        console.log(`time:`, messageDate?.time);
         if(!isEmpty.success){
             throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
         }
@@ -104,7 +100,7 @@ export const deleteMessage = async(req)=>{
             {
                 throwErr({name:Errors.NOT_SIGNED_UP,code: 404})
             }
-            let msg = await Message.findOne({_id:message_id,user:LoggedUser}).session(session);
+            let msg = await Message.findOne({_id:message_id,user:LoggedUser._id}).session(session);
             let isMember = await Channel.findOne({_id:channel_id, "members.member": LoggedUser._id}).session(session);
             console.log(isMember)
             if(!isMember){
