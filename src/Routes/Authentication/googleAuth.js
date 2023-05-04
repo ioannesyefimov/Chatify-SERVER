@@ -27,8 +27,8 @@ router.route('/').post(async(req,res)=>{
             throwErr({name:Errors.MISSING_ARGUMENTS, code:400, arguments:`google credentials is missing `})
         } 
         
-            // console.log(req.body.credential)
-            const verificationResponse = await verifyGoogleToken(req.body.credential);
+        const verificationResponse = await verifyGoogleToken(req.body.credential);
+        console.log(`verif res` , verificationResponse)
             if(verificationResponse?.err) {
                 throwErr(verificationResponse?.err)
             };
