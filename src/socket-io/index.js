@@ -98,15 +98,15 @@ currentChannel.on('connection', (socket)=>{
         if(!response?.success){
               return   currentChannel.in(data.room).emit('receive_message',response)
         }
-        currentChannel.in(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
+        currentChannel.to(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
     })
     socket.on('delete_message',async(data)=>{
+        let sockets = await io.in(data.channel_id).fetchSockets()
+        console.log(`SOCKETS in a room`, sockets);
         console.log(`DATA:`, data);
             let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});
-            if(!response?.success){
-                return   currentChannel.in(data.channel_id).emit('delete_message',response)
-          }
-          currentChannel.in(data.channel_id).emit('delete_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
+            console.log(`RESPONSE`, response);
+          currentChannel.to(data.channel_id).emit('delete_message',response)
             
     })
     socket.on('disconnect',()=>{ 
