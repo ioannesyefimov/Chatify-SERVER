@@ -5,6 +5,7 @@ export const  validateEmail = function(email) {
        return regex.test(email)
 };
 
+
 export const validateNumber = function(number){
     if(number !=null){
         const reg = /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]*$/

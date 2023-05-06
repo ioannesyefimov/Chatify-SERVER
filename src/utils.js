@@ -1,10 +1,15 @@
 import jwt from 'jsonwebtoken'
-import { Schema } from 'mongoose';
+
+
 export function capitalize(string){
   return string && string.charAt(0).toUpperCase() + string.slice(1);
 }
-export 
-function validateName(name){
+
+
+
+
+
+export function validateName(name){
     let specialsRegex=/[*|\":<>[\]{}`\\()';@&$]/;
     if(specialsRegex.test(name)){
         return false
@@ -43,6 +48,9 @@ export function populateCollection(collection, name){
           {
               path:'channels.channel.members.member',
               model: 'User',
+              options:{
+                retainNullValues:true
+              }
           },
           {
               path: 'channels.channel.members.roles',
@@ -51,7 +59,7 @@ export function populateCollection(collection, name){
                   path:'permissions',
                   model:'Permission'
               }]
-          },
+          }, 
         ])
         )
     } else if (name === 'Channel' && collection?.channelName){
@@ -62,9 +70,15 @@ export function populateCollection(collection, name){
           {
               path: 'members.member',
               model: 'User',
+              options:{
+                retainNullValues:true,
+              },
               populate: [{
                   path:'channels.channel',
                   model: 'Channel',
+                  options:{
+                    retainNullValues:true,
+                  },
               }]
           },
           {
@@ -97,6 +111,9 @@ export function populateCollection(collection, name){
             {
               path: 'user',
               model:'User',
+              options:{
+                retainNullValues:true,
+              },
             },
             {
               path:'channelAt',
@@ -458,3 +475,4 @@ export const handleChangeProfile = async(req,res)=>{
 
 }
 }
+

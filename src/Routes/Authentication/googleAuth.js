@@ -30,7 +30,7 @@ router.route('/').post(async(req,res)=>{
         const verificationResponse = await verifyGoogleToken(req.body.credential);
         console.log(`verif res` , verificationResponse)
             if(verificationResponse?.err) {
-                throwErr(verificationResponse?.err)
+                throwErr(verificationResponse)
             };
 
             const profile = verificationResponse?.payload;

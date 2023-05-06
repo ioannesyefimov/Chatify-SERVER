@@ -76,7 +76,7 @@ export const createChannel = async(req) =>{
             let PopulatedChannels =await populateCollection(newChannel, "Channel");
             await session.commitTransaction()
             session.endSession()
-            response =  {success:true, data: PopulatedChannels}
+            response =  {success:true, data:{channel:PopulatedChannels,channels:LoggedUser.channels}}
         })
         return response
 
@@ -417,6 +417,7 @@ export const getChannels = async()=>{
         }
         if(channels.length > 1){
             let promises = channels.map(channel=>populateCollection(channel,'Channel'));
+           
            console.log(`promises`,promises);
             let populatedChannels =  await Promise.all(promises);
             console.log(`populated`, populatedChannels);

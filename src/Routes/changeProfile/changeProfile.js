@@ -20,14 +20,14 @@ export async function deleteAccount (req){
         
         const {userEmail, updatedParams,accessToken,deletedThrough} = req.body
         console.log(`body:`, req.body);
-        if(!userEmail || !accessToken ) throwErr({success:false, message:Errors.MISSING_ARGUMENTS})
+        if(!userEmail || !accessToken ) throwErr({success:false, err:Errors.MISSING_ARGUMENTS})
         
         const isValidToken = await verifyAccessToken(accessToken);
-        if(!isValidToken?.success) throwErr({success:false,message:isValidToken?.err?.message || isValidToken?.err})
+        if(!isValidToken?.success) throwErr({success:false,err:isValidToken?.err?.message || isValidToken?.err})
         
         const isLogged = await Login.findOne({email:userEmail});
         if(!isLogged) {
-           throwErr({success:false, message:Errors.NOT_FOUND})
+           throwErr({success:false, err:Errors.NOT_FOUND})
         };
         const session = await conn.startSession()
         let response 
@@ -41,7 +41,7 @@ export async function deleteAccount (req){
                     await session.abortTransaction()
                     console.log(`USER:`, isDeletedUSER);
                     console.log(`LOGIN:`, isDeletedLOGIN);
-                    throwErr({success:false, message: Errors?.ABORTED_TRANSACTION})
+                    throwErr({success:false, err: Errors?.ABORTED_TRANSACTION})
                 }
                 console.log(`USER:`, isDeletedUSER);
                 console.log(`LOGIN:`, isDeletedLOGIN);
@@ -56,7 +56,7 @@ export async function deleteAccount (req){
             console.log("ISVALID:",isValidPw)
             if(!isValidPw) return res.status(400).send({success:false,message:Errors.WRONG_PASSWORD})
             let isDeletedLOGIN = await Login.deleteOne({email: userEmail}, {session});
-            let isDeletedUSER = await Login.deleteOne({email: userEmail}, {session});
+            let isDeletedUSER = await User.deleteOne({email: userEmail}, {session});
 
             if(!isDeletedLOGIN || !isDeletedUSER) {
                 session.abortTransaction()

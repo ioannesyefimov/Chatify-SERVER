@@ -7,12 +7,35 @@ import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
 import { getUsers } from './src/Routes/Authentication/getUserData.js'
 import { server,app} from './src/socket-io/index.js'
+// import { handleUserWatch } from './src/utils.js'
 
 dotenv.config()
 
-
+export async function handleUserWatch(data){
+    console.log(`USER CHANGE : ` ,data)
+      if(data.operationType==='delete'){
+       let leftChannels = await Channel.updateMany({"members.member":data?.documentKey?._id},{$pull: {'members.member':data?.documentKey?._id}}) 
+       console.log(`left channels`,leftChannels)
+       if(!leftChannels?.length){
+         let leftChannels = await Channel.update({},[{ $replaceWith: {
+            $arrayToObject: {
+              $filter: {
+                input: { $objectToArray: "$$ROOT" },
+                as: "item",
+                cond: { $ne: ["$$item.v", null] }
+              }
+            }
+          }}],
+          { multi: true })
+         console.log(`left chaneels 2 `, leftChannels);
+       }
+      }
+  }
+  
+  
 Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
-User.watch().on('change', data=>console.log(`USER CHANGE : ` ,data))
+User.watch().on('change', handleUserWatch)
+    
 Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 
 
