@@ -23,7 +23,7 @@ export const server = https.createServer({
 
 export const io = new Server(server, {
     cors: {
-        origin: 'https://localhost:5173',
+        origin: ['https://localhost:5173','https://192.168.1.102.nip.io:5173'],
         methods: ['GET','POST','DELETE']
     },
     pfx:fs.readFileSync('./ssl/cert.pfx'),

@@ -55,6 +55,10 @@ ChannelSchema.set('toJSON', {
         // delete ret.__v;
     }
 })
+ChannelSchema.pre('deleteOne',async function (next){
+    const channelId = this.getQuery()["_id"]
+   await mongoose.model('User').updateMany({"channels.channel": channelId},{$unset:{"channels.channel":channelId}}).then(resp=>console.log(resp)).catch(err=>console.error(err))
+})
 const Channel = mongoose.model('Channel', ChannelSchema, 'channels')
 
 

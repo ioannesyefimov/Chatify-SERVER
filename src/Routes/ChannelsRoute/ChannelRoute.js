@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { response } from 'express';
 import * as dotenv from 'dotenv';
 import {User,conn,Login,Channel,Permission,Role, Message} from '../../MongoDb/index.js'
 import {  Errors, checkError,populateCollection , capitalize, throwErr, validateIsEmpty, verifyAccessToken, containsEncodedComponents, checkErrWithoutRes } from '../../utils.js';
@@ -73,11 +73,13 @@ export const createChannel = async(req) =>{
            await LoggedUser?.save({session})
             console.log(newChannel.members)
             // let PopulatedUser = await populateCollection(LoggedUser, "User");
-            let PopulatedChannels =await populateCollection(newChannel, "Channel");
+            let PopulatedChannel =await populateCollection(newChannel, "Channel");
+            let PopulatedChannels = LoggedUser?.channels?.map(async (channel)=>await populateCollection(channel, "Channel"));
             await session.commitTransaction()
             session.endSession()
-            response =  {success:true, data:{channel:PopulatedChannels,channels:LoggedUser.channels}}
+            response =  {success:true, data:{channel:PopulatedChannel,channels:PopulatedChannels}}
         })
+        console.log(`RESPONSE TO CLIENT`, response)
         return response
 
     } catch (error) {
@@ -134,15 +136,17 @@ export const joinChannel = async(req)=>{
             LoggedUser?.channels.push({channel:joiningChannel, roles:[memberRole]})
             joiningChannel?.members.push({member:LoggedUser,roles: [memberRole]})
             
-            LoggedUser.save()
-            joiningChannel.save()
+            await LoggedUser.save()
+           await joiningChannel.save()
             let PopulatedUser = await populateCollection(LoggedUser,'User');
             let PopulatedChannels = await populateCollection(joiningChannel,'Channel');
             await session.commitTransaction()
             session.endSession()
-            response = {success:true,data:{user: PopulatedUser?.userName,channel: PopulatedChannels}}
+            response = {success:true,data:{user: PopulatedUser,channel: PopulatedChannels}}
         })
+        console.log(`RESPONSE TO CLIENT`, response)
         return response
+
     } catch (error) {
         return checkErrWithoutRes(error,res)
     }
@@ -199,10 +203,12 @@ export const leaveChannel= async(req)=>{
             await LoggedUser.channels.pull({channel: channel._id});
             await LoggedUser.save({session});
             let updatedChannel = channel
+            let PopulatedUser = await populateCollection(LoggedUser,'User');
+
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
                 return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-                .then(channel=>response = {success:true,data: {message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`,channel:response}})
+                .then(channel=>response = {success:true,data: {user:PopulatedUser, message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`,channel:response}})
                 .catch(err=>throwErr(err)) 
             }
         
@@ -230,11 +236,11 @@ export const leaveChannel= async(req)=>{
                 console.log(`updatedChannel with new Creator:`, updatedChannel)
                 isThereAdmins = PopulatedChannel?.members[randomUserInd]
             }
-            let PopulatedUser = await populateCollection(LoggedUser,'User');
-            let user = await User.findOne()
             response= {success:true,data: {message2: isThereAdmins?.member ? `${isThereAdmins?.member?.userName} has been given role "Creator Role""` : '' , user:PopulatedUser, channel:PopulatedChannel, message:`${capitalize(LoggedUser?.userName)} has left channel "${channel?.channelName}"`}}
+            console.log(`RESPONSE TO CLIENT`, response)
         })
-        return response
+            return response
+
     } catch (error) {
          return checkErrWithoutRes(error)
     } 
@@ -313,8 +319,10 @@ export const deleteChannel = async(req)=>{
                 await session.endSession()
                 response = {success:true,data: {message:`Channel "${deletedChannel?.channelName}" has been deleted`,channel:deletedChannel}}
             })        
+        console.log(`RESPONSE TO CLIENT`, response)
 
             return response
+
             
 
     } catch (error) {
@@ -347,19 +355,21 @@ export const getUserChannels = async(req)=>{
         let channels = await Channel.find({'members.member':LoggedUser._id}) ;
         console.log(`CHANNELS`, channels);
 
+        let PopulatedUser = await populateCollection(LoggedUser,'User');
         if(channels.length === 0){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
         }else
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>await populateCollection(channel,'Channel')))
-            return {success:true,data:{user: LoggedUser,channels: PopulatedChannels}}
+            return {success:true,data:{user: PopulatedUser,channels: PopulatedChannels}}
         }
-        let PopulatedUser = await populateCollection(LoggedUser,'User');
        
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
-       
-        return {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
+        resposen =  {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
+        
+        console.log(`RESPONSE TO CLIENT`, response)
+        return response
 
     } catch (error) {
          return checkErrWithoutRes(error)
@@ -386,14 +396,17 @@ export const getChannel =async(req)=>{
 
         let isCreated = await Channel.findOne({_id:channel_id});
         if(!isCreated) throwErr({name: Errors.CHANNEL_NOT_FOUND,code:404})
-
+        let response 
         let channels = await Channel.findOne({_id:channel_id, "members.member":isLogged._id });
         console.log(`CHANNELS:`, channels);
         console.log(`isLogged:`, isLogged);
         if(!channels) throwErr({name: Errors.NOT_A_MEMBER,code:400,arguments:{channel_id:isCreated._id}})
         let PopulatedChannels = await populateCollection(channels, 'Channel');
        console.log(`PopulatedChannels,` , PopulatedChannels)
-        return {success:true,data:{channel: PopulatedChannels,user:isLogged}} 
+       response= {success:true,data:{channel: PopulatedChannels,user:isLogged}} 
+       console.log(`RESPONSE TO CLIENT`, response)
+ 
+       return response
     } catch (error) {
          return checkErrWithoutRes(error)
     }
@@ -415,6 +428,7 @@ export const getChannels = async()=>{
         if(channels.length === 0){
              throwErr({name: Errors.CHANNELS_NOT_FOUND,code:404})
         }
+        let response
         if(channels.length > 1){
             let promises = channels.map(channel=>populateCollection(channel,'Channel'));
            
@@ -422,12 +436,14 @@ export const getChannels = async()=>{
             let populatedChannels =  await Promise.all(promises);
             console.log(`populated`, populatedChannels);
             // loop through every channel that user is member of and then send it 
-            return {success:true,data:{channels:populatedChannels }}
+            response= {success:true,data:{channels:populatedChannels }}
         }
         let PopulatedChannels = await populateCollection(channels[0], 'Channel')
-       
-        return {success:true,data:{channels: [PopulatedChannels]}}
-
+        
+        response= {success:true,data:{channels: [PopulatedChannels]}}
+        
+        console.log(`RESPONSE TO CLIENT`, response)
+        return response
     } catch (error) {
          return checkErrWithoutRes(error)
     }

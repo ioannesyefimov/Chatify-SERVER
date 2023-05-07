@@ -72,6 +72,10 @@ UserSchema.pre('updateOne', function(next){
     this.setOptions({runValidators:true})
     next()
 })
+UserSchema.pre('deleteOne',async function (next){
+    const personId = this.getQuery()["_id"]
+   await mongoose.model('Channel').deleteMany({"members.member": personId}).then(resp=>console.log(resp)).catch(err=>console.error(err))
+})
 UserSchema.set('toJSON', {
     virtuals: true,
     transform: (doc,result) => {
