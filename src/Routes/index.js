@@ -1,3 +1,4 @@
+import GetUserRoute from './Authentication/getUsers.js'
 import GoogleRoute from './Authentication/googleAuth.js'
 import SignInRoute from './Authentication/SingInRoute.js'
 import RegisterRoute from './Authentication/RegisterRoute.js'
@@ -12,5 +13,5 @@ import MessageRoute from './MessagesRoute/MessageRoute.js'
 import ChannelChangeRoute from './ChannelsRoute/ChangeChannelRoute.js'
 import RoleRoute from './Roles/roles.js'
 export {
- RoleRoute,ChannelRoute, MessageRoute, facebookRoute, changeProfileRoute,SignInRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute,ChannelChangeRoute
+    GetUserRoute, RoleRoute,ChannelRoute, MessageRoute, facebookRoute, changeProfileRoute,SignInRoute, GoogleRoute,GitHubRoute,UserDataRoute ,TokenRoute, RegisterRoute,uploadRoute,ChannelChangeRoute
 }

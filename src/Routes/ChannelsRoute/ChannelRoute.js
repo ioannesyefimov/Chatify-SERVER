@@ -351,6 +351,7 @@ export const getUserChannels = async(req)=>{
         if(!LoggedUser ){
             throwErr({err:{name: Errors.NOT_SIGNED_UP,code:404}})
         }
+        let response
         console.log(`USER`,LoggedUser);
         let channels = await Channel.find({'members.member':LoggedUser._id}) ;
         console.log(`CHANNELS`, channels);
@@ -362,11 +363,13 @@ export const getUserChannels = async(req)=>{
         if(channels.length > 1){
             // loop through every channel that user is member of and then send it 
             let PopulatedChannels = await Promise.all(channels.map(async channel=>await populateCollection(channel,'Channel')))
-            return {success:true,data:{user: PopulatedUser,channels: PopulatedChannels}}
+            response= {success:true,data:{user: PopulatedUser,channels: PopulatedChannels}}
+        }else {
+
+            let PopulatedChannels = await populateCollection(channels[0], 'Channel')
+            response =  {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
         }
        
-        let PopulatedChannels = await populateCollection(channels[0], 'Channel')
-        resposen =  {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
         
         console.log(`RESPONSE TO CLIENT`, response)
         return response
@@ -387,9 +390,10 @@ router.route('/userChannels').get(async(req,res) =>{
 export const getChannel =async(req)=>{
     try {
         console.log(`REQ:`, req);
-        const {channel_id,userEmail}=req.query
+        const {userEmail}=req.query
+        const {channel_id}=req.params
         if(!channel_id || !userEmail){
-            throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments: `channelName`})
+            throwErr({name:Errors.MISSING_ARGUMENTS,code:400, arguments:`${!userEmail ? 'userEmail' : 'channel_id'} `})
         }
         let isLogged = await User.findOne({email:userEmail});
         if(!isLogged) throwErr({name:Errors.NOT_SIGNED_UP, code:400});
@@ -411,7 +415,7 @@ export const getChannel =async(req)=>{
          return checkErrWithoutRes(error)
     }
 }
-router.route('/channel/:channelId').get(async(req,res) =>{
+router.route('/channel/:channel_id').get(async(req,res) =>{
     let  response = await getChannel(req);
     if(response.success){
         res.status(200).send(response)
@@ -437,10 +441,12 @@ export const getChannels = async()=>{
             console.log(`populated`, populatedChannels);
             // loop through every channel that user is member of and then send it 
             response= {success:true,data:{channels:populatedChannels }}
+
+        }else {
+            let PopulatedChannels = await populateCollection(channels[0], 'Channel')
+            response= {success:true,data:{channels: [PopulatedChannels]}}
         }
-        let PopulatedChannels = await populateCollection(channels[0], 'Channel')
         
-        response= {success:true,data:{channels: [PopulatedChannels]}}
         
         console.log(`RESPONSE TO CLIENT`, response)
         return response

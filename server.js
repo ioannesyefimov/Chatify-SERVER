@@ -2,10 +2,9 @@ import * as dotenv from 'dotenv'
 
 import {Login,User} from './src/MongoDb/models/index.js'
 
-import { uploadRoute,ChannelChangeRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
+import {GetUserRoute, uploadRoute,ChannelChangeRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
-import { getUsers } from './src/Routes/Authentication/getUserData.js'
 import { server,app} from './src/socket-io/index.js'
 // import { handleUserWatch } from './src/utils.js'
 
@@ -40,9 +39,10 @@ Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 
 
 app.route('/api/').get((req,res)=>res.send('Hello from chatify server!'))
-app.route('/api/user/:userEmail').get(async(req,res)=>await getUsers(req,res))
+// app.route('/api/user/:userId').get(async(req,res)=>await getUser(req,res))
 
-  
+
+app.use('/api/users',GetUserRoute)
 app.use('/api/auth/register', RegisterRoute)
 app.use('/api/auth/signin', SignInRoute)
 
