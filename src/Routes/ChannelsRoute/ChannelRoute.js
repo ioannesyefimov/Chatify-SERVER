@@ -367,7 +367,7 @@ export const getUserChannels = async(req)=>{
         }else {
 
             let PopulatedChannels = await populateCollection(channels[0], 'Channel')
-            response =  {success:true,data:{user:PopulatedUser,channels:PopulatedChannels}}
+            response =  {success:true,data:{user:PopulatedUser,channels:[PopulatedChannels]}}
         }
        
         

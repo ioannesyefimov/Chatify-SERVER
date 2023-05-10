@@ -207,13 +207,14 @@ export async function profileChange(req){
               phone:isLogged[0]?.phone ,
               picture: isLogged[0]?.picture,
               loggedThrough: isLogged[0]?.loggedThrough,
+                channels:isLogged[0]?.channels,
             }
             console.log(userData);
             let accessToken = await generateAccessToken(userData);
             console.log(`token: ${accessToken}`);
             await session.commitTransaction(); 
             session.endSession()
-            response = {success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken}}
+            response = {success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken,loggedThrough:userData?.loggedThrough,user:userData}}
 
         })
         return response ?? throwErr({name:'TRANSCATION FAILED', code:500})
