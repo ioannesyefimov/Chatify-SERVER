@@ -201,8 +201,9 @@ export function checkErrWithoutRes(error,res){
   console.error(`SERVER error: `, error)
   console.error(`typeof error: `, typeof error)
     let errors = {};
-    if(error.err==='TokenExpiredError'){
-      return {success:false,err:error.err}
+    if (error instanceof jwt.TokenExpiredError) {
+
+      return {success:false,err:Errors.JWT_MALFORMED}
 
     }
     if(error.name === 'ValidationError'){
@@ -247,7 +248,7 @@ export function checkErrWithoutRes(error,res){
 }
 export function checkError(error,res){
   console.error(`SERVER error: `, error)
-  console.error(`typeof error: `, typeof error)
+  console.log(`typeof error: `, typeof error)
     let errors = {};
     if(error.err==='TokenExpiredError'){
       return res.status(400).send({success:false,err:error.err})
