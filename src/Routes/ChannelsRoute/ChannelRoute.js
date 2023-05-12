@@ -207,8 +207,8 @@ export const leaveChannel= async(req)=>{
 
             if(updatedChannel.members.length === 0){
                 console.log(`DELETING CHANNEL`)
-                return await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
-                .then(channel=>response = {success:true,data: {user:PopulatedUser, message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`,channel:response}})
+                return  await Channel.findOneAndDelete({_id:updatedChannel._id},{session})
+                .then(channel=>response = {success:true,data: {user:PopulatedUser, message:`CHANNEL "${channel?.channelName}" HAS BEEN DELETED DUE TO LACK OF MEMBERS`,channel}})
                 .catch(err=>throwErr(err)) 
             }
         

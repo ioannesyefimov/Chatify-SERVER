@@ -200,21 +200,13 @@ export async function profileChange(req){
             }
             if(Object.keys(changesArray).length === 0 && changesArray.constructor === Object) throwErr({success:false,name:Errors.CHANGES_NOT_APPLIED, message:`CHANGES HAVEN'T BEEN APPLIED`})
             console.log(changesArray)
-            let userData = {
-              email:isLogged?.email,
-              userName: isLogged?.userName,
-              bio:isLogged?.bio ,
-              phone:isLogged?.phone ,
-              picture: isLogged?.picture,
-              loggedThrough: isLogged?.loggedThrough,
-                channels:isLogged?.channels,
-            }
-            console.log(userData);
-            let accessToken = await generateAccessToken({email:userData?.email});
+          
+            console.log(`user`, isLogged);
+            let accessToken = await generateAccessToken({email:isLogged?.email});
             console.log(`token: ${accessToken}`);
             await session.commitTransaction(); 
             session.endSession()
-            response = {success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken,loggedThrough:userData?.loggedThrough,user:userData}}
+            response = {success:true, data: { message:Errors.CHANGES_APPLIED, changes: changesArray, accessToken,loggedThrough:userData?.loggedThrough,user:isLogged}}
 
         })
         console.log(`response to client:`, response)
