@@ -406,7 +406,10 @@ export const getChannel =async(req)=>{
         console.log(`isLogged:`, isLogged);
         if(!channels) throwErr({name: Errors.NOT_A_MEMBER,code:400,arguments:{channel_id:isCreated._id}})
         let PopulatedChannels = await populateCollection(channels, 'Channel');
-       console.log(`PopulatedChannels,` , PopulatedChannels)
+        let AdminRole = await Role.findOne({name:'Admin'})
+        let hasAdminPermissions = PopulatedChannels?._doc?.members?.find(member=>member._doc?.member?._doc?._id.equals(isLogged?._id))?.roles.find(role=>role?._doc?.name==='Admin' || role?._doc?.name==='Creator')
+        console.log(`HAs ADMIN PERMISSIONS `, hasAdminPermissions);
+
        response= {success:true,data:{channel: PopulatedChannels,user:isLogged}} 
        console.log(`RESPONSE TO CLIENT`, response)
  
