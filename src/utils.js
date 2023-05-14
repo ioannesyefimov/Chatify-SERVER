@@ -36,8 +36,11 @@ const formattedToday =  yyyy + '/' + mm + '/' + dd;
 }
 
 export function populateCollection(collection, name){
+  console.log(`NAME: ` ,name);
+  console.log(`COLLECTION: ` ,collection);
+ 
   return new Promise((resolve, reject) => {
-    if(name === 'User' && collection?.email){
+    if(name === 'User' ){
       // console.log(`COLLECTION USER: `, collection)
       return resolve(
         collection.populate([
@@ -62,7 +65,7 @@ export function populateCollection(collection, name){
           }, 
         ])
         )
-    } else if (name === 'Channel' && collection?.channelName){
+    } else if (name === 'Channel' ){
       // console.log(`COLLECTION Channel: `, collection)
 
         return resolve(
@@ -104,7 +107,7 @@ export function populateCollection(collection, name){
          
         ])
         )   
-    } else if (name === 'Message' && collection?.message){
+    } else if (name === 'Message' ){
       // console.log(`COLLECTION Message: `, collection)
         return resolve(
           collection.populate([

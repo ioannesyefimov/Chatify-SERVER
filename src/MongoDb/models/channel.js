@@ -7,7 +7,6 @@ const ChannelSchema = new mongoose.Schema({
         type:String,
         trim:true,
         required:true,
-        unique: true,
          minlength: [2, "channel name must be at least 2 characters"],
         maxlength: [30, "channel name must be maximum 30 characters"],
         validate: [

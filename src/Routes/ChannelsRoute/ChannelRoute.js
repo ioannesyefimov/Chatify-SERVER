@@ -71,7 +71,7 @@ export const createChannel = async(req) =>{
             LoggedUser?.channels?.push({channel:newChannel})
            await newChannel?.save({session})
            await LoggedUser?.save({session})
-            console.log(newChannel.members)
+            console.log(newChannel)
             // let PopulatedUser = await populateCollection(LoggedUser, "User");
             let PopulatedChannel =await populateCollection(newChannel, "Channel");
             let PopulatedChannels = LoggedUser?.channels?.map(async (channel)=>await populateCollection(channel, "Channel"));
@@ -198,11 +198,12 @@ export const leaveChannel= async(req)=>{
             console.log(`LoggedUser:`, LoggedUser)
             console.log(`leavingChannel:`, channel)
             let member = channel?.members?.find(member=>member?.member?.equals(LoggedUser._id))
+            console.log(`MEMBER`,member)
             await channel.members.pull(member)
             await channel.save({session});
             await LoggedUser.channels.pull({channel: channel._id});
             await LoggedUser.save({session});
-            let updatedChannel = channel
+            let updatedChannel =await populateCollection(channel,'channel');
             let PopulatedUser = await populateCollection(LoggedUser,'User');
 
             if(updatedChannel.members.length === 0){
@@ -406,9 +407,11 @@ export const getChannel =async(req)=>{
         console.log(`isLogged:`, isLogged);
         if(!channels) throwErr({name: Errors.NOT_A_MEMBER,code:400,arguments:{channel_id:isCreated._id}})
         let PopulatedChannels = await populateCollection(channels, 'Channel');
-        let AdminRole = await Role.findOne({name:'Admin'})
-        let hasAdminPermissions = PopulatedChannels?._doc?.members?.find(member=>member._doc?.member?._doc?._id.equals(isLogged?._id))?.roles.find(role=>role?._doc?.name==='Admin' || role?._doc?.name==='Creator')
-        console.log(`HAs ADMIN PERMISSIONS `, hasAdminPermissions);
+
+        console.log(`populatedChannels`, PopulatedChannels);
+        // find user in an array of members and check whether this user has admin permissions in chat or not.
+        // let hasAdminPermissions = PopulatedChannels?.members?.find(member=>member.member?._id.equals(isLogged?._id))?.find(member=>member?.roles?.name==='Admin' || member?.roles?.name==='Creator') 
+        // console.log(`HAs ADMIN PERMISSIONS `, hasAdminPermissions);
 
        response= {success:true,data:{channel: PopulatedChannels,user:isLogged}} 
        console.log(`RESPONSE TO CLIENT`, response)
