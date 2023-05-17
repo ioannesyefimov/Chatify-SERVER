@@ -7,15 +7,15 @@ const RoleSchema = new mongoose.Schema({
         required:true,
         unique: true,
     },
-    description:[{
+    description:{
         type:String,
-    }],
+    },
 
-    permissions: [{
+    permissions: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Permission',
         default:'write&read'
-    }],
+    },
 
 }, {versionKey: false })
 

@@ -3,16 +3,10 @@ import https from 'https'
 import cors from 'cors'
 import fs from 'fs'
 import express from 'express'
-
-import { createDate, populateCollection,Errors, APIFetch } from '../utils.js'
-import { getChannel, getUserChannels } from '../Routes/ChannelsRoute/ChannelRoute.js'
+import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
 import { createMessage, deleteMessage } from '../Routes/MessagesRoute/MessageRoute.js'
 
-
 export const app = express();
-
-
-
 
 const baseUrl = `https://localhost:5050/api`
 export const server = https.createServer({
@@ -47,12 +41,18 @@ userIo.on('connection',(socket)=>{
         onlineUsers.push({userId:data.userId,socketId:socket.id})
         socket.join('onlineUsers')
         socket.emit('user_online',{online:onlineUsers})
+        console.log(`onlineusers: `,onlineUsers);
+
         console.log(`CONNECTED SOCKET:`, Object.keys(io.of('user')?.sockets));
     });
-    socket.on('disconnect', ()=>{
-        let filteredArr = onlineUsers.filter(user=>user.socketId !== socket.id)
-        onlineUsers = filteredArr
+    socket.on('disconnect', (data)=>{
+        onlineUsers = onlineUsers.filter(user=>{
+            console.log(`USER`,user);
+            console.log(`socketId`,socket.id);
+            return    user.socketId !== socket.id
+        })
         socket.leave('onlineUsers')
+        console.log(`onlineusers: `,onlineUsers);
         socket.emit('user_online',{online:onlineUsers})
 
     });
@@ -66,14 +66,14 @@ currentChannel.on('connection', (socket)=>{
     console.log(`User connected to currentChannel socket by  ${socket.id}`)
     socket.on('join_channel',async data=>{
         socket.join(data.room)
-
-        console.log(`JOINED`, data.room);
+        console.log(`User "${data?.user?.email}: JOINED channel with id:`, data.room);
         socket.emit('join_channel',{data:{room:data.room}})
+        console.log(`ONLINE_USERS:`,onlineUsers)
     });
     socket.on('leave_channel',async(data)=>{
         if(!data) return
         socket.leave(data)
-        console.log(`USER ${data.user} left room "${data.id}"`);
+        console.log(`USER "${data.user?.email}" left room "${data.id}"`);
     })
 
 

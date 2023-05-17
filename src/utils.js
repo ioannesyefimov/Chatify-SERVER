@@ -37,10 +37,10 @@ const formattedToday =  yyyy + '/' + mm + '/' + dd;
 
 export function populateCollection(collection, name){
   console.log(`NAME: ` ,name);
-  console.log(`COLLECTION: ` ,collection);
+  console.log(`COLLECTION: ` ,collection?.channelName);
  
   return new Promise((resolve, reject) => {
-    if(name === 'User' ){
+    if(name === 'User', collection?.userName ){
       // console.log(`COLLECTION USER: `, collection)
       return resolve(
         collection.populate([
@@ -65,7 +65,7 @@ export function populateCollection(collection, name){
           }, 
         ])
         )
-    } else if (name === 'Channel' ){
+    } else if (name === 'Channel',collection?.channelName){
       // console.log(`COLLECTION Channel: `, collection)
 
         return resolve(
@@ -107,7 +107,7 @@ export function populateCollection(collection, name){
          
         ])
         )   
-    } else if (name === 'Message' ){
+    } else if (name === 'Message',collection?.message ){
       // console.log(`COLLECTION Message: `, collection)
         return resolve(
           collection.populate([
@@ -420,7 +420,7 @@ export const verifyAccessToken =(token )=>{
     console.log(`secret: `, process.env.JWT_TOKEN_SECRET)
     jwt.verify(token, process.env.JWT_TOKEN_SECRET, async(err,result)=>{
     if(err) {
-        console.log(err)
+        console.error(err)
         return reject({success:false,err})
     }
     

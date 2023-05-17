@@ -24,17 +24,17 @@ router.route('/create').post(async(req,res)=>{
         // if(isValidToken?.err){
         //     throwErr({name: isValidToken.err?.message ?? isValidToken?.err,code:400})
 
+        const newPermission = new Permission({
+            name,description:permissionDescription,
+        },{session})
         // }
         const newRole = new Role({
-            name,roleDescription
+            name,description:roleDescription,permissions:newPermission
         },{session})
-        const newPermission = new Permission({
-            name,permissionDescription
-        },{session})
-        newRole.permissions.push(newPermission)
+        // newRole.permissions.push(newPermission)
         
-        newRole.save({session})
-        newPermission.save({session})
+        await newRole.save({session})
+        await newPermission.save({session})
       
         return res.status(200).send({success:true,data: {message:`"${newRole.name}" has been created`}})
     } catch (error) {

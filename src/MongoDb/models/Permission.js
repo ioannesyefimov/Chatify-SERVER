@@ -8,9 +8,9 @@ const PermissionSchema = new mongoose.Schema({
         required:true,
         unique: true,
     },
-    description:[{
+    description:{
         type:String,
-    }],
+    },
 
 }, {versionKey: false })
 

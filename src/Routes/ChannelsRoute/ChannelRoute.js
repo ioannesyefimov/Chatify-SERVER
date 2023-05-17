@@ -10,81 +10,92 @@ dotenv.config()
 const router = express.Router()
 
 export const createChannel = async(req) =>{
+    const session = await conn.startSession()
     try{
-        const session = await conn.startSession()
         const {accessToken,userEmail,channelDiscription, channelName,channelAvatar} = req.body  // Bearer ACCESSTOKEN
         let ARGUMENTS = {channelName,userEmail}
         const isEmpty = await validateIsEmpty(ARGUMENTS);
         
-        if(!isEmpty.success){
-            throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
-        }
-       
+        
         // const  isValidToken = await verifyAccessToken(accessToken);
         // if(isValidToken?.err) throwErr({success:false, message: isValidToken.err?.message || isValidToken?.err})
-
+        
         // let LoggedUser = await User.findOne({email:isValidToken?.result?.email});
-        let LoggedUser = await User.findOne({email:userEmail});
-        if(!LoggedUser ){
-            throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
-        } 
-        let isCreated = await Channel.findOne({channelName});
-        if(isCreated) {
-            throwErr({name: Errors.ALREADY_EXISTS,code:400,arguments: isCreated })
-        }
-            let response
-         await session.withTransaction(async()=>{
-
-
-            console.log(`ISCREATED: `,isCreated)
-            const newChannel =  new Channel({
-                channelName
-            },{session});
-
-            if(channelAvatar){
-                console.error(channelAvatar);
-                let uploadPicture = await handleUploadPicture(channelAvatar);
-                console.error(uploadPicture);
-                if(uploadPicture.success) {
-                    newChannel.channelAvatar = uploadPicture?.url
-                    await newChannel.save({session})
+        let response
+        await session.withTransaction(async()=>{
+            try {
+                if(!isEmpty.success){
+                    throwErr({name: Errors.MISSING_ARGUMENTS , code: 400, arguments:isEmpty?.missing})
                 }
-            }
+                
+                let LoggedUser = await User.findOne({email:userEmail});
+                if(!LoggedUser ){
+                    throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
+                } 
+                let isCreated = await Channel.findOne({channelName});
+                if(isCreated) {
+                    throwErr({name: Errors.ALREADY_EXISTS,code:400,arguments: isCreated })
+                }
     
-            if(channelDiscription){
-                newChannel.channelDiscription = channelDiscription
-                await newChannel.save({session})
-
-
-            }
-            console.log(`newchannel:`, newChannel)
-            if(!newChannel){
-                throwErr(newChannel)
-                return console.log(`err not thrown`)
-            }
+                console.log(`ISCREATED: `,isCreated)
+                const newChannel =  new Channel({
+                    channelName
+                },{session});
     
-            let creatorRole = await Role.findOne({name:"Creator"});
-            if(!creatorRole){
-                throwErr({name:`ROLE NOT FOUND`, code:404})
-            } 
-            newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
-            LoggedUser?.channels?.push({channel:newChannel})
-           await newChannel?.save({session})
-           await LoggedUser?.save({session})
-            console.log(newChannel)
-            // let PopulatedUser = await populateCollection(LoggedUser, "User");
-            let PopulatedChannel =await populateCollection(newChannel, "Channel");
-            let PopulatedChannels = LoggedUser?.channels?.map(async (channel)=>await populateCollection(channel, "Channel"));
-            await session.commitTransaction()
-            session.endSession()
-            response =  {success:true, data:{channel:PopulatedChannel,channels:PopulatedChannels}}
+                if(channelAvatar){
+                    console.error(channelAvatar);
+                    let uploadPicture = await handleUploadPicture(channelAvatar);
+                    console.error(uploadPicture);
+                    if(uploadPicture.success) {
+                        newChannel.channelAvatar = uploadPicture?.url
+                        await newChannel.save({session})
+                    }
+                }
+        
+                if(channelDiscription){
+                    newChannel.channelDiscription = channelDiscription
+                    await newChannel.save({session})
+    
+    
+                }
+                console.log(`newchannel:`, newChannel)
+                if(!newChannel){
+                    throwErr(newChannel)
+                    return console.log(`err not thrown`)
+                }
+        
+                let creatorRole = await Role.findOne({name:"Creator"});
+                if(!creatorRole){
+                    throwErr({name:`ROLE NOT FOUND`, code:404})
+                } 
+                newChannel?.members?.push({member:LoggedUser,roles:[creatorRole]})
+                LoggedUser?.channels?.push({channel:newChannel})
+                await newChannel?.save({session})
+                await LoggedUser?.save({session})
+                console.log(newChannel?.members)
+                let populatedUser=await populateCollection(LoggedUser,'User');
+                let populatedChannel =  await populateCollection(newChannel,'Channel')
+                await session.commitTransaction()
+                console.log(`COMMITING TRANSACTION....`);
+
+                response =  {success:true, data:{user:populatedUser,channel:populatedChannel}}
+                
+            } catch (error) {
+                await session.abortTransaction()
+                console.log(`ABORTING TRANSACTION....`);
+                return throwErr(error)
+            } finally{
+                await session.endSession()
+                console.log(`ENDING TRANSACTION....`);
+
+            }
         })
         console.log(`RESPONSE TO CLIENT`, response)
         return response
 
     } catch (error) {
-         return checkErrWithoutRes(error)
-    }
+        return checkErrWithoutRes(error)
+    } 
 
 }
 
