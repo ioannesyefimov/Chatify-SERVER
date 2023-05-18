@@ -35,12 +35,15 @@ const userIo = io.of('/user')
 let onlineUsers = []
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
+    socket.emit('user_online',{online:onlineUsers})
     socket.on('user_online',async data=>{
         console.log(`useronline data`, data);
         if(!data.userId) return console.error('missing userid')
+        let isOnline = onlineUsers.some(user=>user?.userId===data?.userId)
+        if(isOnline) return socket.emit('user_online',{online:onlineUsers})
         onlineUsers.push({userId:data.userId,socketId:socket.id})
         socket.join('onlineUsers')
-        socket.emit('user_online',{online:onlineUsers})
+        socket.in('onlineUsers').emit('user_online',{online:onlineUsers})
         console.log(`onlineusers: `,onlineUsers);
 
         console.log(`CONNECTED SOCKET:`, Object.keys(io.of('user')?.sockets));
@@ -53,7 +56,7 @@ userIo.on('connection',(socket)=>{
         })
         socket.leave('onlineUsers')
         console.log(`onlineusers: `,onlineUsers);
-        socket.emit('user_online',{online:onlineUsers})
+        socket.in('onlineUsers').emit('user_online',{online:onlineUsers})
 
     });
 
@@ -75,7 +78,9 @@ currentChannel.on('connection', (socket)=>{
         socket.leave(data)
         console.log(`USER "${data.user?.email}" left room "${data.id}"`);
     })
-
+    socket.on('get_online_users', ()=>{
+        socket.emit('get_online_users',{online:onlineUsers})
+    })
 
     socket.on('get_channel',async(data)=>{
         console.log(`data:`,data);
