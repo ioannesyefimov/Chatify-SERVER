@@ -30,12 +30,15 @@ app.use(
 app.set('socketio',io)
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
+
+
 const currentChannel = io.of('/currentChannel')
 const userIo = io.of('/user')
+const currentChannelCall = io.of('/currentChannelCall')
 let onlineUsers = []
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
-    socket.emit('user_online',{online:onlineUsers})
+    socket.to(socket.id).emit('user_online',{online:onlineUsers})
     socket.on('user_online',async data=>{
         console.log(`useronline data`, data);
         if(!data.userId) return console.error('missing userid')
@@ -63,8 +66,6 @@ userIo.on('connection',(socket)=>{
 
 
 })
-
-
 currentChannel.on('connection', (socket)=>{
     console.log(`User connected to currentChannel socket by  ${socket.id}`)
     socket.on('join_channel',async data=>{
@@ -80,15 +81,6 @@ currentChannel.on('connection', (socket)=>{
     })
     socket.on('get_online_users', ()=>{
         socket.emit('get_online_users',{online:onlineUsers})
-    })
-
-    socket.on('get_channel',async(data)=>{
-        console.log(`data:`,data);
-        let req = {query :{userEmail:data?.userEmail,channel_id: data?.channel_id}}
-        let response = await getChannel(req)
-        console.log(`RESPONSE:`, response);
-        console.log(`ID:`, socket.id);
-        currentChannel.to(socket.id).emit('get_channel', response)
     })
 
     socket.on('send_message', async(data)=>{
@@ -114,7 +106,31 @@ currentChannel.on('connection', (socket)=>{
           currentChannel.to(data.channel_id).emit('delete_message',response)
             
     })
+
+
     socket.on('disconnect',()=>{ 
         console.log(`Client ${socket.id} disconnected from currentChannel`);
+    })
+})
+
+currentChannelCall.on('connection', socket=>{
+    console.log(`${socket.id} connected to currentChannelCall`)
+
+    socket.on('disconnect',()=>{
+        console.log(`${socket.id} disconnected`)
+        socket.broadcast.emit(`callEnded`)
+    })
+
+    socket.on('channelCall', data=>{
+        for (let user of data.users){
+            io.to(user.id).emit('channelCall',{signal:data?.signalData,from:data.from,channelName:data?.channelName  })
+        }
+    })
+
+    socket.on('answerChannelCall', data=>{
+        for(let user of data?.users){
+            io.to(user?.id).emit('channelCallAccepted',data?.signal)
+
+        }
     })
 })
