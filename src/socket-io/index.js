@@ -112,22 +112,28 @@ currentChannel.on('connection', (socket)=>{
         console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
 })
-
+const peerConnections = new Set()
 currentChannelCall.on('connection', socket=>{
     console.log(`${socket.id} connected to currentChannelCall`)
+    socket.on('join_room',data=>{
+        socket.join(data?.room)
+        peerConnections.add({room:data?.room,user_id:data?.user_id,signal:data?.signal})
+        socket.emit('join_room',{message:`User with id ${data?.user_id} joined room "${data?.room}"`,candidate:data?.user_id})
+    })
+    socket.on('message',data=>{
+        console.log(`data: `,data)
+        socket.broadcast.to(data?.room).emit('message',data)
+    })
 
     socket.on('disconnect',()=>{
         console.log(`${socket.id} disconnected`)
         socket.broadcast.emit(`callEnded`)
     })
 
-    socket.on('channel_call',data=>{
-        const {signal,from,channel_id}=data
-        console.log(`DATA:`,data);
-        socket.broadcast.to(channel_id)?.emit('received_call',{answer:signal,from,channel_id})
+    socket.on('candidate',data=>{
+        console.log(`DATA`,data)
+        const {user_id,candidate,room}=data
+        socket.to(room).emit({user_id,candidate,room})
     })
-    socket.on('channel_answer_call',data=>{
-        console.log(`DATA:`,data)
-        socket.to(data?.channel_id).emit('received_call',{answer:data?.answer,channel_id:data?.channel_id})
-    })
+    
 })
