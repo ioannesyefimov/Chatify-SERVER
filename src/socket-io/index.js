@@ -34,7 +34,7 @@ app.use(express.urlencoded({limit: '50mb'}));
 
 const currentChannel = io.of('/currentChannel')
 const userIo = io.of('/user')
-const currentChannelCall = io.of('/currentChannelCall')
+const currentChannelCall = io.of('/current-channel-call')
 let onlineUsers = []
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
@@ -82,7 +82,7 @@ currentChannel.on('connection', (socket)=>{
     socket.on('get_online_users', ()=>{
         socket.emit('get_online_users',{online:onlineUsers})
     })
-
+ 
     socket.on('send_message', async(data)=>{
         console.log(`MESSAGE: `, data);
         console.log(`ROOM:`, data.room);
@@ -121,16 +121,13 @@ currentChannelCall.on('connection', socket=>{
         socket.broadcast.emit(`callEnded`)
     })
 
-    socket.on('channelCall', data=>{
-        for (let user of data.users){
-            io.to(user.id).emit('channelCall',{signal:data?.signalData,from:data.from,channelName:data?.channelName  })
-        }
+    socket.on('channel_call',data=>{
+        const {signal,from,channel_id}=data
+        console.log(`DATA:`,data);
+        socket.broadcast.to(channel_id)?.emit('received_call',{answer:signal,from,channel_id})
     })
-
-    socket.on('answerChannelCall', data=>{
-        for(let user of data?.users){
-            io.to(user?.id).emit('channelCallAccepted',data?.signal)
-
-        }
+    socket.on('channel_answer_call',data=>{
+        console.log(`DATA:`,data)
+        socket.to(data?.channel_id).emit('received_call',{answer:data?.answer,channel_id:data?.channel_id})
     })
 })
