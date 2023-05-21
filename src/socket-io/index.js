@@ -131,58 +131,47 @@ currentChannel.on('connection', (socket)=>{
         console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
 })
-const connectedUsers = {}
+
+
+
+
+const users = {};
+
+const socketToRoom = {};
 currentChannelCall.on('connection', socket=>{
-    console.log(`${socket.id} connected to currentChannelCall`)
-    socket.on('join_room',data=>{
-        socket.join(data?.room)
-        console.log(`User ${data?.user_id} joined ${data?.room}`)
-        addUser(data?.user_id, socket.id,data?.room);
-        socket.to(socket.id).emit('join_room',{message:`User ${data?.user_id} joined ${data?.room}`})
-        socket.broadcast.to(data?.room).emit('new_peer',{user_id:data?.user_id})
-        // socket.broadcast.to(data?.room).emit('candidate',{user_id:data?.user_id,room:data?.room,socket_id:socket.id})
-    })
-    socket.on('message',data=>{
-        console.log(`message data:`,data);
-        console.log(`USERS:`,connectedUsers);
-        socket.to(data?.room).emit('message',data)
-       
-    })
-
-    socket.on('disconnect',()=>{
-        console.log(`${socket.id} disconnected`)
-        removeUser(socket.id);
-        socket.broadcast.emit(`callEnded`)
-    })
-
-    socket.on('candidate',data=>{
-        console.log(`DATA`,data)
-        const {user_id,candidate,room}=data
-        socket.to(room).emit({user_id,candidate,room})
-    })
-   function addUser(userId, socketId,room) {
-        connectedUsers[userId] = {socketId,room};
-        io.to(socketId).emit('userAdded', userId);
-      }
-      
-      function removeUser(socketId) {
-        const userId = findUserId(socketId);
-        if (userId) {
-            let room = connectedUsers[userId]?.room
-            console.log(`room:`,room);
-          delete connectedUsers[userId];
-          socket.to(room).emit('userRemoved', userId);
+    socket.on("join room", roomID => {
+        if (users[roomID]) {
+            // const length = users[roomID].length;
+            // if (length === 4) {
+            //     socket.emit("room full");
+            //     return;
+            // }
+            users[roomID].push(socket.id);
+        } else {
+            users[roomID] = [socket.id];
         }
-      }
-      
-      function findUserId(socketId) {
-        console.log(`SOCKET_ID`,socketId)
-        console.log(`users`,connectedUsers)
-        return Object.keys(connectedUsers).find((userId) => connectedUsers[userId]?.socketId === socketId);
-      }
-      
-      function findReceiverId(senderId) {
-        return Object.keys(connectedUsers).find((userId) => userId !== senderId);
-      }
+        socketToRoom[socket.id] = roomID;
+        const usersInThisRoom = users[roomID].filter(id => id !== socket.id);
+
+        socket.emit("all users", usersInThisRoom);
+    });
+
+    socket.on("sending signal", payload => {
+        currentChannelCall.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerID: payload.callerID });
+    });
+
+    socket.on("returning signal", payload => {
+        currentChannelCall.to(payload.callerID).emit('receiving returned signal', { signal: payload.signal, id: socket.id });
+    });
+
+    socket.on('disconnect', () => {
+        const roomID = socketToRoom[socket.id];
+        let room = users[roomID];
+        if (room) {
+            room = room.filter(id => id !== socket.id);
+            users[roomID] = room;
+        }
+    });
+
     
 })
