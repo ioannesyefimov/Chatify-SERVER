@@ -35,33 +35,52 @@ app.use(express.urlencoded({limit: '50mb'}));
 const currentChannel = io.of('/currentChannel')
 const userIo = io.of('/user')
 const currentChannelCall = io.of('/current-channel-call')
-let onlineUsers = []
+let onlineUsers = {}
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
     socket.to(socket.id).emit('user_online',{online:onlineUsers})
+
+
     socket.on('user_online',async data=>{
         console.log(`useronline data`, data);
-        if(!data.userId) return console.error('missing userid')
-        let isOnline = onlineUsers.some(user=>user?.userId===data?.userId)
-        if(isOnline) return socket.emit('user_online',{online:onlineUsers})
-        onlineUsers.push({userId:data.userId,socketId:socket.id})
+        if(!data.user_id) return console.error('missing userid')
+        addUser(data?.user_id,socket?.id)
         socket.join('onlineUsers')
-        socket.in('onlineUsers').emit('user_online',{online:onlineUsers})
+        socket.to('onlineUsers').emit('user_online',onlineUsers)
         console.log(`onlineusers: `,onlineUsers);
 
         console.log(`CONNECTED SOCKET:`, Object.keys(io.of('user')?.sockets));
     });
     socket.on('disconnect', (data)=>{
-        onlineUsers = onlineUsers.filter(user=>{
-            console.log(`USER`,user);
-            console.log(`socketId`,socket.id);
-            return    user.socketId !== socket.id
-        })
+        removeUser(socket?.id)
         socket.leave('onlineUsers')
         console.log(`onlineusers: `,onlineUsers);
-        socket.in('onlineUsers').emit('user_online',{online:onlineUsers})
+        socket.to('onlineUsers').emit('user_online',onlineUsers)
 
     });
+
+    function addUser(userId, socketId,) {
+        onlineUsers[socketId] = userId;
+        socket.to(socketId).emit('userAdded', userId);
+      }
+      
+      function removeUser(socketId) {
+        const userId = findUserId(socketId);
+        if (userId) {
+          delete onlineUsers[userId];
+          socket.to().emit('userRemoved', userId);
+        }
+      }
+      
+      function findUserId(socketId) {
+        console.log(`SOCKET_ID`,socketId)
+        console.log(`users`,onlineUsers)
+        return Object.keys(onlineUsers).find((userId) => socketId === userId);
+      }
+      
+      function findReceiverId(senderId) {
+        return Object.keys(onlineUsers).find((userId) => userId !== senderId);
+      }
 
 
 
@@ -112,21 +131,27 @@ currentChannel.on('connection', (socket)=>{
         console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
 })
-const peerConnections = new Set()
+const connectedUsers = {}
 currentChannelCall.on('connection', socket=>{
     console.log(`${socket.id} connected to currentChannelCall`)
     socket.on('join_room',data=>{
         socket.join(data?.room)
-        peerConnections.add({room:data?.room,user_id:data?.user_id,signal:data?.signal})
-        socket.emit('join_room',{message:`User with id ${data?.user_id} joined room "${data?.room}"`,candidate:data?.user_id})
+        console.log(`User ${data?.user_id} joined ${data?.room}`)
+        addUser(data?.user_id, socket.id,data?.room);
+        socket.to(socket.id).emit('join_room',{message:`User ${data?.user_id} joined ${data?.room}`})
+        socket.broadcast.to(data?.room).emit('new_peer',{user_id:data?.user_id})
+        // socket.broadcast.to(data?.room).emit('candidate',{user_id:data?.user_id,room:data?.room,socket_id:socket.id})
     })
     socket.on('message',data=>{
-        console.log(`data: `,data)
-        socket.broadcast.to(data?.room).emit('message',data)
+        console.log(`message data:`,data);
+        console.log(`USERS:`,connectedUsers);
+        socket.to(data?.room).emit('message',data)
+       
     })
 
     socket.on('disconnect',()=>{
         console.log(`${socket.id} disconnected`)
+        removeUser(socket.id);
         socket.broadcast.emit(`callEnded`)
     })
 
@@ -135,5 +160,29 @@ currentChannelCall.on('connection', socket=>{
         const {user_id,candidate,room}=data
         socket.to(room).emit({user_id,candidate,room})
     })
+   function addUser(userId, socketId,room) {
+        connectedUsers[userId] = {socketId,room};
+        io.to(socketId).emit('userAdded', userId);
+      }
+      
+      function removeUser(socketId) {
+        const userId = findUserId(socketId);
+        if (userId) {
+            let room = connectedUsers[userId]?.room
+            console.log(`room:`,room);
+          delete connectedUsers[userId];
+          socket.to(room).emit('userRemoved', userId);
+        }
+      }
+      
+      function findUserId(socketId) {
+        console.log(`SOCKET_ID`,socketId)
+        console.log(`users`,connectedUsers)
+        return Object.keys(connectedUsers).find((userId) => connectedUsers[userId]?.socketId === socketId);
+      }
+      
+      function findReceiverId(senderId) {
+        return Object.keys(connectedUsers).find((userId) => userId !== senderId);
+      }
     
 })
