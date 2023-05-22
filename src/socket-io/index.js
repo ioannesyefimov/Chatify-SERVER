@@ -134,44 +134,68 @@ currentChannel.on('connection', (socket)=>{
 
 
 
+const connectedUsers = {};
 
-const users = {};
-
-const socketToRoom = {};
 currentChannelCall.on('connection', socket=>{
-    socket.on("join room", roomID => {
-        if (users[roomID]) {
-            // const length = users[roomID].length;
-            // if (length === 4) {
-            //     socket.emit("room full");
-            //     return;
-            // }
-            users[roomID].push(socket.id);
-        } else {
-            users[roomID] = [socket.id];
-        }
-        socketToRoom[socket.id] = roomID;
-        const usersInThisRoom = users[roomID].filter(id => id !== socket.id);
+  console.log('A user connected:', socket.id);
+  
+  socket.on('join_room', ({userId,room})=>{
+    if(!room) return console.error(`ROOM IS empty`)
+    socket.join(room);
+    addUser(userId,socket.id,room)
+    console.log(`users`,connectedUsers);
+    let users = findUsersInRoom(room,connectedUsers)?.filter(user=>user!==userId)
+    currentChannelCall.emit('users', users);
+  })
 
-        socket.emit("all users", usersInThisRoom);
-    });
+  socket.on('disconnect', () => {
+    console.log('A user disconnected:', socket.id);
+    removeUser(socket.id)
+    let users = findUsersInRoom(room,connectedUsers)
+    currentChannelCall.emit('users', users);
+  });
 
-    socket.on("sending signal", payload => {
-        currentChannelCall.to(payload.userToSignal).emit('user joined', { signal: payload.signal, callerID: payload.callerID });
-    });
+  socket.on('offer', ({ userId, offer }) => {
+    console.log(`Received offer from ${socket.id} for user ${userId}:`, offer);
+    currentChannelCall.to(userId).emit('offer', { userId: socket.id, offer });
+  });
 
-    socket.on("returning signal", payload => {
-        currentChannelCall.to(payload.callerID).emit('receiving returned signal', { signal: payload.signal, id: socket.id });
-    });
+  socket.on('answer', ({ userId, answer }) => {
+    console.log(`Received answer from ${socket.id} for user ${userId}:`, answer);
+    currentChannelCall.to(userId).emit('answer', { userId: socket.id, answer });
+  });
 
-    socket.on('disconnect', () => {
-        const roomID = socketToRoom[socket.id];
-        let room = users[roomID];
-        if (room) {
-            room = room.filter(id => id !== socket.id);
-            users[roomID] = room;
-        }
-    });
+  socket.on('iceCandidate', ({ userId, candidate }) => {
+    console.log(`Received ICE candidate from ${socket.id} for user ${userId}:`, candidate);
+    currentChannelCall.to(userId).emit('iceCandidate', { userId: socket.id, candidate });
+  });
 
-    
-})
+  
+
+  function addUser(userId, socketId,room) {
+    connectedUsers[userId] = {socketId,room};
+    currentChannelCall.to(socketId).emit('userAdded', userId);
+  }
+  function findUsersInRoom(room,obj){
+    if(!obj) return []
+    return Object.keys(obj).filter(key=>{
+        return obj[key].room ===room
+    })
+  }
+  
+  function removeUser(socketId) {
+    const userId = findUserId(socketId);
+    if (userId) {
+      delete connectedUsers[userId];
+      currentChannelCall.emit('userRemoved', userId);
+    }
+  }
+  
+  function findUserId(socketId) {
+    return Object.keys(connectedUsers).find((userId) => connectedUsers[userId].socketId === socketId);
+  }
+  
+  function findReceiverId(senderId) {
+    return Object.keys(connectedUsers).find((userId) => userId.socketId !== senderId);
+  }
+});
