@@ -17,7 +17,7 @@ export const server = https.createServer({
 
 export const io = new Server(server, {
     cors: {
-        origin: ['https://localhost:5173','https://192.168.1.102.nip.io:5173'],
+        origin: ['https://localhost:5173','https://192.168.1.102:5173', 'https://192.168.1.102.nip.io:5173'],
         methods: ['GET','POST','DELETE']
     },
     pfx:fs.readFileSync('./ssl/cert.pfx'),
@@ -150,8 +150,9 @@ currentChannelCall.on('connection', socket=>{
 
   socket.on('disconnect', () => {
     console.log('A user disconnected:', socket.id);
+    const user = findUserId(socket.id)
     removeUser(socket.id)
-    let users = findUsersInRoom(room,connectedUsers)
+    let users = findUsersInRoom(user?.room,connectedUsers) 
     currentChannelCall.emit('users', users);
   });
 
@@ -179,6 +180,9 @@ currentChannelCall.on('connection', socket=>{
   function findUsersInRoom(room,obj){
     if(!obj) return []
     return Object.keys(obj).filter(key=>{
+      console.log(`KEY:`,key)
+      console.log(`obj:`,obj[key])
+      console.log(`room:`,room)
         return obj[key].room ===room
     })
   }
