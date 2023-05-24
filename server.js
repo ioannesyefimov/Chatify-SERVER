@@ -1,23 +1,25 @@
 import * as dotenv from 'dotenv'
 
+
+
 import {Login,User} from './src/MongoDb/models/index.js'
 
 import {GetUserRoute, uploadRoute,ChannelChangeRoute, GoogleRoute, facebookRoute, GitHubRoute, UserDataRoute, RegisterRoute, SignInRoute, TokenRoute, changeProfileRoute, ChannelRoute, RoleRoute,MessageRoute} from './src/Routes/index.js'
+
 import connectDB from './src/MongoDb/connect.js'
 import { Channel } from './src/MongoDb/index.js'
-import { server,app} from './src/socket-io/index.js'
-// import { handleUserWatch } from './src/utils.js'
 
-dotenv.config()
+import {app,server} from './src/socket-io/index.js'
+
 
 export async function handleUserWatch(data){
-    console.log(`USER CHANGE : ` ,data)
-      if(data.operationType==='delete'){
-       let leftChannels = await Channel.updateMany({"members.member":data?.documentKey?._id},{$pull: {'members.member':data?.documentKey?._id}}) 
-       console.log(`left channels`,leftChannels)
-       if(!leftChannels?.length){
-         let leftChannels = await Channel.update({},[{ $replaceWith: {
-            $arrayToObject: {
+  console.log(`USER CHANGE : ` ,data)
+  if(data.operationType==='delete'){
+    let leftChannels = await Channel.updateMany({"members.member":data?.documentKey?._id},{$pull: {'members.member':data?.documentKey?._id}}) 
+    console.log(`left channels`,leftChannels)
+    if(!leftChannels?.length){
+      let leftChannels = await Channel.update({},[{ $replaceWith: {
+        $arrayToObject: {
               $filter: {
                 input: { $objectToArray: "$$ROOT" },
                 as: "item",
@@ -29,8 +31,12 @@ export async function handleUserWatch(data){
          console.log(`left chaneels 2 `, leftChannels);
        }
       }
-  }
-  
+}
+
+
+
+
+
   
 Login.watch().on('change', data=>console.log(`LOGIN CHANGE: ` ,data))
 User.watch().on('change', handleUserWatch)
@@ -39,7 +45,7 @@ Channel.watch().on('change', data=>console.log(`CHANNEL CHANGE :` , data))
 
 
 app.route('/api/').get((req,res)=>res.send('Hello from chatify server!'))
-// app.route('/api/user/:userId').get(async(req,res)=>await getUser(req,res))
+dotenv.config()
 
 
 app.use('/api/users',GetUserRoute)
@@ -60,8 +66,12 @@ app.use('/api/channels', ChannelRoute)
 app.use('/api/messages', MessageRoute)
 
 app.use('/api/roles',RoleRoute)
-const PORT = process.env.PORT || 5050
 
+
+
+
+
+const PORT = process.env.PORT || 5050
 
 const StartServer = async ()=>{
     try {

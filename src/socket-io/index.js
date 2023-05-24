@@ -1,36 +1,35 @@
-import {Server} from 'socket.io'
+
+import { createMessage, deleteMessage } from '../Routes/MessagesRoute/MessageRoute.js'
 import https from 'https'
 import cors from 'cors'
+import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
-import { getChannel } from '../Routes/ChannelsRoute/ChannelRoute.js'
-import { createMessage, deleteMessage } from '../Routes/MessagesRoute/MessageRoute.js'
 
 export const app = express();
-
-const baseUrl = `https://localhost:5050/api`
-export const server = https.createServer({
-   pfx: fs.readFileSync('./ssl/cert.pfx'),
-    passphrase: '134679582ioa',
-    
-},app)
-
-export const io = new Server(server, {
-    cors: {
-        origin: ['https://localhost:5173','https://192.168.1.102:5173', 'https://192.168.1.102.nip.io:5173'],
-        methods: ['GET','POST','DELETE']
-    },
-    pfx:fs.readFileSync('./ssl/cert.pfx'),
-    passphrase: '134679582ioa',
-})
 app.use(
-    cors()
+  cors()
 )
 
-app.set('socketio',io)
 app.use(express.json({limit: '50mb'}));
 app.use(express.urlencoded({limit: '50mb'}));
 
+
+export const server = https.createServer({
+  pfx:fs.readFileSync('./ssl/cert.pfx'),
+  passphrase:'134679582ioa'
+},app)
+
+
+export const io = new Server(server, {
+  cors: {
+      origin: ['https://localhost:5173','https://192.168.1.102:5173'],
+      methods: ['GET','POST','DELETE']
+  },
+  
+})
+
+app.set('socketio',io)
 
 const currentChannel = io.of('/currentChannel')
 const userIo = io.of('/user')
@@ -38,14 +37,14 @@ const currentChannelCall = io.of('/current-channel-call')
 let onlineUsers = {}
 userIo.on('connection',(socket)=>{
     console.log(`User connected to userSocket by ${socket.id}`)
-    socket.to(socket.id).emit('user_online',{online:onlineUsers})
-
-
+    
+    
     socket.on('user_online',async data=>{
-        console.log(`useronline data`, data);
-        if(!data.user_id) return console.error('missing userid')
-        addUser(data?.user_id,socket?.id)
-        socket.join('onlineUsers')
+      console.log(`useronline data`, data);
+      if(!data.user_id) return console.error('missing userid')
+      addUser(data?.user_id,socket?.id)
+      socket.join('onlineUsers')
+      socket.to(socket.id).emit('user_online',{online:onlineUsers})
         socket.to('onlineUsers').emit('user_online',onlineUsers)
         console.log(`onlineusers: `,onlineUsers);
 

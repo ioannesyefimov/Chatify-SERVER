@@ -18,6 +18,7 @@ const router = express.Router()
 
 router.route('/').post(async(req,res)=>{
     try {
+        console.log(`body`,req.body);
         const {email, password, accessToken, loggedThrough} = req.body
      
         // // }s
