@@ -143,7 +143,7 @@ currentChannelCall.on('connection', socket=>{
     socket.join(room);
     addUser(userId,socket.id,room)
     console.log(`users`,connectedUsers);
-    let users = findUsersInRoom(room,connectedUsers)?.filter(user=>user!==userId)
+    let users = findUsersInRoom(room,connectedUsers)
     currentChannelCall.emit('users', users);
   })
 
