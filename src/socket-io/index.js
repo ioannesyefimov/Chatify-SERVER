@@ -144,30 +144,33 @@ currentChannelCall.on('connection', socket=>{
     addUser(userId,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
-    currentChannelCall.emit('users', users);
+    console.log(`found users`,users);
+    currentChannelCall.to(room).emit('users', users);
   })
 
   socket.on('disconnect', () => {
     console.log('A user disconnected:', socket.id);
     const user = findUserId(socket.id)
+    const room = user?.room
+    console.log('A user:', user);
     removeUser(socket.id)
-    let users = findUsersInRoom(user?.room,connectedUsers) 
-    currentChannelCall.emit('users', users);
+    let users = findUsersInRoom(room,connectedUsers) 
+    currentChannelCall.to(room).emit('users', users);
   });
 
-  socket.on('offer', ({ userId, offer }) => {
-    console.log(`Received offer from ${socket.id} for user ${userId}:`, offer);
-    currentChannelCall.to(userId).emit('offer', { userId: socket.id, offer });
+  socket.on('offer', ({ userId,from, offer,socketId }) => {
+    console.log(`Received offer from ${socket.id} for user ${socketId}:`, offer);
+    currentChannelCall.to(socketId).emit('offer', { userId,from, offer });
   });
 
-  socket.on('answer', ({ userId, answer }) => {
+  socket.on('answer', ({ userId, answer,socketId }) => {
     console.log(`Received answer from ${socket.id} for user ${userId}:`, answer);
-    currentChannelCall.to(userId).emit('answer', { userId: socket.id, answer });
+    currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer });
   });
 
-  socket.on('iceCandidate', ({ userId, candidate }) => {
+  socket.on('iceCandidate', ({ userId,socketId, candidate }) => {
     console.log(`Received ICE candidate from ${socket.id} for user ${userId}:`, candidate);
-    currentChannelCall.to(userId).emit('iceCandidate', { userId: socket.id, candidate });
+    currentChannelCall.to(socketId).emit('iceCandidate', { userId: socket.id, candidate });
   });
 
   
@@ -177,13 +180,19 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(socketId).emit('userAdded', userId);
   }
   function findUsersInRoom(room,obj){
-    if(!obj) return []
-    return Object.keys(obj).filter(key=>{
-      console.log(`KEY:`,key)
-      console.log(`obj:`,obj[key])
+    console.log(`obj :`,obj)
+    if(!obj || !room) return [{}]
+    let usersObj=Object.keys(obj).map(userId=>{
+      console.log(`userId:`,userId)
+      console.log(`obj + key:`,obj[userId])
       console.log(`room:`,room)
-        return obj[key].room ===room
+        if(obj[userId].room===room){
+          return {user:{socketId:obj[userId].socketId,userId}} 
+        }
     })
+    console.log(`usersObj`,usersObj);
+    return usersObj
+   
   }
   
   function removeUser(socketId) {
@@ -195,6 +204,7 @@ currentChannelCall.on('connection', socket=>{
   }
   
   function findUserId(socketId) {
+    console.log(`socketId:`,socketId);
     return Object.keys(connectedUsers).find((userId) => connectedUsers[userId].socketId === socketId);
   }
   
