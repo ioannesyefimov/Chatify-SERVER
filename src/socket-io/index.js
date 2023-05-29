@@ -160,11 +160,12 @@ currentChannelCall.on('connection', socket=>{
 
   socket.on('offer', ({ userId,from, offer,socketId }) => {
     console.log(`Received offer from ${socket.id} for user ${socketId}:`, offer);
-    currentChannelCall.to(socketId).emit('offer', { userId,from, offer });
+    console.log(`userId:${userId}. From:${from}`);
+    currentChannelCall.to(socketId).emit('offer', { userId,from,socketId, offer });
   });
 
   socket.on('answer', ({ userId, answer,socketId }) => {
-    console.log(`Received answer from ${socket.id} for user ${userId}:`, answer);
+    console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
     currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer });
   });
 
