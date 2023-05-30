@@ -111,7 +111,7 @@ currentChannel.on('connection', (socket)=>{
         }})        
         console.log(`RESPONSE:`, response);
         if(!response?.success){
-              return   currentChannel.in(data.room).emit('receive_message',response)
+              return currentChannel.in(data.room).emit('receive_message',response)
         }
         currentChannel.to(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
     })
@@ -139,8 +139,9 @@ currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
   
   socket.on('join_room', ({userId,room})=>{
-    if(!room) return console.error(`ROOM IS empty`)
-    socket.join(room);
+    if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
+    // if(!room) return console.error(`ROOM IS empty`)
+    socket.join(room)
     addUser(userId,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
@@ -148,11 +149,12 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(room).emit('users', users);
   })
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect',async () => {
     console.log('A user disconnected:', socket.id);
-    const user = findUserId(socket.id)
+    const user = findUserId(socket.id,connectedUsers)
     const room = user?.room
-    console.log('A user:', user);
+    await socket.leave(room)
+    console.log('A user:', user)
     removeUser(socket.id)
     let users = findUsersInRoom(room,connectedUsers) 
     currentChannelCall.to(room).emit('users', users);
@@ -204,9 +206,10 @@ currentChannelCall.on('connection', socket=>{
     }
   }
   
-  function findUserId(socketId) {
+  function findUserId(socketId,obj) {
     console.log(`socketId:`,socketId);
-    return Object.keys(connectedUsers).find((userId) => connectedUsers[userId].socketId === socketId);
+    if(!obj) return 
+    return Object.keys(obj).find((userId) => obj[userId].socketId===socketId)
   }
   
   function findReceiverId(senderId) {
