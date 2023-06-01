@@ -140,6 +140,7 @@ currentChannelCall.on('connection', socket=>{
   
   socket.on('join_room', ({userId,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
+    if(findUserId(socket.id)) return console.log(`already online in a room`)
     // if(!room) return console.error(`ROOM IS empty`)
     socket.join(room)
     addUser(userId,socket.id,room)
@@ -168,6 +169,8 @@ currentChannelCall.on('connection', socket=>{
 
   socket.on('answer', ({ userId, answer,socketId }) => {
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
+    console.log(`userId:${userId}. socketId:${socketId}`);
+
     currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer });
   });
 
@@ -199,7 +202,8 @@ currentChannelCall.on('connection', socket=>{
   }
   
   function removeUser(socketId) {
-    const userId = findUserId(socketId);
+    const userId = findUserId(socketId,connectedUsers);
+    console.log(`USERID:`,userId);
     if (userId) {
       delete connectedUsers[userId];
       currentChannelCall.emit('userRemoved', userId);
@@ -207,9 +211,11 @@ currentChannelCall.on('connection', socket=>{
   }
   
   function findUserId(socketId,obj) {
-    console.log(`socketId:`,socketId);
     if(!obj) return 
-    return Object.keys(obj).find((userId) => obj[userId].socketId===socketId)
+    console.log(`socketId:`,socketId);
+    let user =Object.keys(obj).find((userId) => obj[userId].socketId===socketId)
+    console.log(`user:`,user);
+    return user
   }
   
   function findReceiverId(senderId) {
