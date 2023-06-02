@@ -140,7 +140,7 @@ currentChannelCall.on('connection', socket=>{
   
   socket.on('join_room', ({userId,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
-    if(findUserId(socket.id)) return console.log(`already online in a room`)
+    if(findUserId(socket.id,connectedUsers)?.userId) return console.log(`already online in a room`)
     // if(!room) return console.error(`ROOM IS empty`)
     socket.join(room)
     addUser(userId,socket.id,room)
