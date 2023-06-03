@@ -193,7 +193,8 @@ currentChannelCall.on('connection', socket=>{
       console.log(`obj + key:`,obj[userId])
       console.log(`room:`,room)
         if(obj[userId].room===room){
-          return {user:{socketId:obj[userId].socketId,userId}} 
+          let user={user:{userId, socketId:obj[userId].socketId,room}}
+          return user
         }
     })
     console.log(`usersObj`,usersObj);
@@ -205,8 +206,9 @@ currentChannelCall.on('connection', socket=>{
     const userId = findUserId(socketId,connectedUsers);
     console.log(`USERID:`,userId);
     if (userId) {
+      let room = connectedUsers[userId]?.room
       delete connectedUsers[userId];
-      currentChannelCall.emit('userRemoved', userId);
+      currentChannelCall.to(room).emit('userRemoved', userId);
     }
   }
   
