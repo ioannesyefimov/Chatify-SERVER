@@ -44,8 +44,8 @@ userIo.on('connection',(socket)=>{
       if(!data.user_id) return console.error('missing userid')
       addUser(data?.user_id,socket?.id)
       socket.join('onlineUsers')
-      socket.to(socket.id).emit('user_online',{online:onlineUsers})
-        socket.to('onlineUsers').emit('user_online',onlineUsers)
+      userIo.to(socket.id).emit('user_online',{online:onlineUsers})
+      userIo.to('onlineUsers').emit('user_online',onlineUsers)
         console.log(`onlineusers: `,onlineUsers);
 
         console.log(`CONNECTED SOCKET:`, Object.keys(io.of('user')?.sockets));
@@ -54,20 +54,20 @@ userIo.on('connection',(socket)=>{
         removeUser(socket?.id)
         socket.leave('onlineUsers')
         console.log(`onlineusers: `,onlineUsers);
-        socket.to('onlineUsers').emit('user_online',onlineUsers)
+        userIo.to('onlineUsers').emit('user_online',onlineUsers)
 
     });
 
     function addUser(userId, socketId,) {
         onlineUsers[socketId] = userId;
-        socket.to(socketId).emit('userAdded', userId);
+        userIo.to(socketId).emit('userAdded', userId);
       }
       
       function removeUser(socketId) {
         const userId = findUserId(socketId);
         if (userId) {
           delete onlineUsers[userId];
-          socket.to().emit('userRemoved', userId);
+          userIo.emit('userRemoved', userId);
         }
       }
       
@@ -111,12 +111,12 @@ currentChannel.on('connection', (socket)=>{
         }})        
         console.log(`RESPONSE:`, response);
         if(!response?.success){
-              return currentChannel.in(data.room).emit('receive_message',response)
+              return currentChannel.to(data.room).emit('receive_message',response)
         }
         currentChannel.to(data.room).emit('receive_message',{data:{messages:response.data.channel.messages,message:response.data.message}})
     })
     socket.on('delete_message',async(data)=>{
-        let sockets = await io.in(data.channel_id).fetchSockets()
+        let sockets = await currentChannel.in(data.channel_id).fetchSockets()
         console.log(`SOCKETS in a room`, sockets);
         console.log(`DATA:`, data);
             let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});
@@ -152,30 +152,40 @@ currentChannelCall.on('connection', socket=>{
 
   socket.on('disconnect',async () => {
     console.log('A user disconnected:', socket.id);
-    const user = findUserId(socket.id,connectedUsers)
-    const room = user?.room
+    const userId = findUserId(socket.id,connectedUsers)
+    const room = connectedUsers[userId]?.room
+    console.log('A room:', room)
     await socket.leave(room)
-    console.log('A user:', user)
     removeUser(socket.id)
     let users = findUsersInRoom(room,connectedUsers) 
     currentChannelCall.to(room).emit('users', users);
   });
 
-  socket.on('offer', ({ userId,from, offer,socketId }) => {
-    console.log(`Received offer from ${socket.id} for user ${socketId}:`, offer);
+  socket.on('offer', ({ userId,from, offer,socketId,fromSocket }) => {
+    console.log(`Received offer from ${from} for user ${socketId}:`, offer);
+    let isOnline = connectedUsers[userId].socketId
+    console.log(`isOnline`,isOnline);
+
     console.log(`userId:${userId}. From:${from}`);
-    currentChannelCall.to(socketId).emit('offer', { userId,from,socketId, offer });
+    currentChannelCall.to(socketId).emit('offer', { userId,from,fromSocket,socketId, offer });
   });
 
-  socket.on('answer', ({ userId, answer,socketId }) => {
+  socket.on('answer', ({ userId, answer,socketId,from }) => {
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
     console.log(`userId:${userId}. socketId:${socketId}`);
-
-    currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer });
+    let isOnline = connectedUsers[userId].socketId
+    console.log(`isOnline`,isOnline);
+    if(!isOnline) return console.log(`NOT ONLINE`)
+    currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer ,from});
   });
 
   socket.on('iceCandidate', ({ userId,socketId, candidate }) => {
-    console.log(`Received ICE candidate from ${socket.id} for user ${userId}:`, candidate);
+    console.log(`Received ICE candidate from ${socket.id} for user ${socketId}:`, candidate);
+    let isOnline = connectedUsers[userId].socketId
+    console.log(`icecandidate userId:`,userId);
+    console.log(`isOnline`,isOnline);
+    console.log(`icecandidate socketId`,socketId);
+    if(isOnline )
     currentChannelCall.to(socketId).emit('iceCandidate', { userId: socket.id, candidate });
   });
 
@@ -212,13 +222,11 @@ currentChannelCall.on('connection', socket=>{
     }
   }
   
-  function findUserId(socketId,obj) {
-    if(!obj) return 
-    console.log(`socketId:`,socketId);
-    let user =Object.keys(obj).find((userId) => obj[userId].socketId===socketId)
-    console.log(`user:`,user);
-    return user
-  }
+function findUserId(socketId, obj) {
+  if (!obj) return null;
+  const userId = Object.keys(obj).find((id) => obj[id].socketId === socketId);
+  return userId || null;
+}
   
   function findReceiverId(senderId) {
     return Object.keys(connectedUsers).find((userId) => userId.socketId !== senderId);
