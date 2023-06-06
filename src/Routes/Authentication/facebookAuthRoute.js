@@ -20,6 +20,7 @@ router.route('/').post(async(req,res)=>{
         return await conn.transaction(async()=>{
 
             const isLoggedAlready = await User.findOne({email: credentials?.email}).session(session)
+            if(isLoggedAlready?.loggedThrough?.toLowerCase() !== 'facebook') throwErr({success:false,err:Errors.SIGNED_UP_DIFFERENTLY}) 
             // if(isLoggedAlready) 
             let user
             if(isLoggedAlready){

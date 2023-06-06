@@ -24,8 +24,9 @@ export const handleUserData = async(req) => {
         
         const USER = await User.findOne({email: isValidToken?.result.email})
         console.log(`USER`, USER);
-        if(USER?.loggedThrough?.toLowerCase !== loggedThrough?.toLowerCase)throwErr({success:false,err:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
-        
+        if(USER?.loggedThrough?.toLowerCase !== loggedThrough?.toLowerCase){
+            throwErr({success:false,err:Errors.SIGNED_UP_DIFFERENTLY, loggedThrough: USER.loggedThrough})
+        }
         let populatedUser = await populateCollection(USER,'User')
     
         console.log(`POPULATED`, populatedUser);

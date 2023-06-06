@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node   server.js",
     "dev": "nodemon --inspect server.js",
-    "devip": "nodemon --inspect server.js IP_ADDRESS=192.168.1.102"
+    "devip": "nodemon --inspect server.js IP_ADDRESS=192.168.1.101"
   },
   "keywords": [],
   "author": "",
