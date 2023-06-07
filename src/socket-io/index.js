@@ -167,14 +167,19 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(room).emit('users', users);
   });
 
-  socket.on('offer', ({ userId,from, offer,socketId,fromSocket }) => {
+  socket.on('offer', ({ userId,fromUserId, from, offer,socketId,fromSocket }) => {
     console.log(`Received offer from ${from} for user ${userId}:`, offer);
     let isOnline = connectedUsers[userId]?.socketId
     console.log(`isOnline`,isOnline)
     if(!isOnline)return 
     console.log(`userId:${userId}. From:${from}`);
-    currentChannelCall.to(socketId).emit('offer', { userId,from,fromSocket,socketId, offer });
+    currentChannelCall.to(isOnline).emit('offer', { userId,from,fromSocket,socketId, offer });
   });
+
+  socket.on('call-peer',data=>{
+    console.log(`call peer triggered`,data);
+    currentChannel.to(socket.id).emit('call-peer',data)
+  })
 
   socket.on('answer', ({ userId, answer,socketId,from }) => {
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
@@ -182,7 +187,7 @@ currentChannelCall.on('connection', socket=>{
     let isOnline = connectedUsers[userId].socketId
     console.log(`isOnline`,isOnline);
     if(!isOnline) return console.log(`NOT ONLINE`)
-    currentChannelCall.to(isOnline).emit('answer',  { userId,socketId, answer ,from});
+    currentChannelCall.to(socketId).emit('answer',  { userId,socketId, answer ,from});
   });
 
   socket.on('iceCandidate', ({ userId,socketId, candidate }) => {
