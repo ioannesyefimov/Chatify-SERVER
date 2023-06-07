@@ -95,7 +95,7 @@ currentChannel.on('connection', (socket)=>{
     socket.on('leave_channel',async(data)=>{
         if(!data) return
         socket.leave(data)
-        console.log(`USER "${data.user?.email}" left room "${data.id}"`);
+        console.log(`USER "${data.user}" left room "${data.id}"`);
     })
     socket.on('get_online_users', ()=>{
         socket.emit('get_online_users',{online:onlineUsers})
@@ -142,9 +142,8 @@ currentChannelCall.on('connection', socket=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
     if(findUserId(socket.id,connectedUsers)) {
       let users = findUsersInRoom(room,connectedUsers)
-      currentChannelCall.to(room).emit('users', users);
+      // currentChannelCall.to(room).emit('users', users);
       return console.log(`already online in a room`)
-    
     }
     // if(!room) return console.error(`ROOM IS empty`)
    await socket.join(room)
@@ -164,7 +163,7 @@ currentChannelCall.on('connection', socket=>{
     console.log('A room:', room)
     await socket.leave(room)
     removeUser(socket.id)
-    let users = findUsersInRoom(room,connectedUsers) 
+    let users = findUsersInRoom(room,connectedUsers)
     currentChannelCall.to(room).emit('users', users);
   });
 
@@ -183,17 +182,18 @@ currentChannelCall.on('connection', socket=>{
     let isOnline = connectedUsers[userId].socketId
     console.log(`isOnline`,isOnline);
     if(!isOnline) return console.log(`NOT ONLINE`)
-    currentChannelCall.to(socketId).emit('answer', { userId,socketId, answer ,from});
+    currentChannelCall.to(isOnline).emit('answer',  { userId,socketId, answer ,from});
   });
 
   socket.on('iceCandidate', ({ userId,socketId, candidate }) => {
+    if(!userId || !socketId || !candidate) return
     console.log(`Received ICE candidate from ${socket.id} for user ${socketId}:`, candidate);
-    let isOnline = connectedUsers[userId].socketId
+    let isOnline = connectedUsers[userId]?.socketId
     console.log(`icecandidate userId:`,userId);
     console.log(`isOnline`,isOnline);
     console.log(`icecandidate socketId`,socketId);
     if(isOnline )
-    currentChannelCall.to(socketId).emit('iceCandidate', { userId, candidate });
+    currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
 
   
@@ -206,14 +206,15 @@ currentChannelCall.on('connection', socket=>{
     console.log(`obj :`,obj)
     if(!obj || !room) return
     let usersObj=Object.keys(obj).map(userId=>{
+      if(!userId) return
       console.log(`userId:`,userId)
       console.log(`obj + key:`,obj[userId])
       console.log(`room:`,room)
         if(obj[userId].room===room){
           let user={user:{userId, socketId:obj[userId].socketId,room}}
           return user
-        }
-    })
+        } 
+    }).filter(user=>user !== null && user !== undefined)
     console.log(`usersObj`,usersObj);
     return usersObj
    
@@ -221,9 +222,10 @@ currentChannelCall.on('connection', socket=>{
   
   function removeUser(socketId) {
     const userId = findUserId(socketId,connectedUsers);
-    console.log(`USERID:`,userId);
     if (userId) {
       let room = connectedUsers[userId]?.room
+      console.log(`USERID:`,userId);
+
       delete connectedUsers[userId];
       currentChannelCall.to(room).emit('userRemoved', userId);
     }
