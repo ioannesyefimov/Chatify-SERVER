@@ -176,11 +176,6 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(isOnline).emit('offer', { userId,from,fromSocket,socketId, offer });
   });
 
-  socket.on('call-peer',data=>{
-    console.log(`call peer triggered`,data);
-    currentChannel.to(socket.id).emit('call-peer',data)
-  })
-
   socket.on('answer', ({ userId, answer,socketId,from }) => {
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
     console.log(`userId:${userId}. socketId:${socketId}`);
