@@ -5,6 +5,7 @@ import cors from 'cors'
 import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
+import { log } from 'console'
 
 export const app = express();
 app.use(
@@ -41,7 +42,13 @@ userIo.on('connection',(socket)=>{
     
     socket.on('user_online',async data=>{
       console.log(`useronline data`, data);
+
       if(!data.user_id) return console.error('missing userid')
+      const isOnline = onlineUsers[socket.id]
+      if(isOnline){
+        userIo.to(socket.id).emit('user_online',{isOnline:true})
+        return 
+      }
       addUser(data?.user_id,socket?.id)
       socket.join('onlineUsers')
       userIo.to(socket.id).emit('user_online',{online:onlineUsers})
@@ -138,6 +145,7 @@ const connectedUsers = {};
 currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
   
+ 
   socket.on('join_room',async ({userId,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
     if(findUserId(socket.id,connectedUsers)) {
@@ -151,7 +159,7 @@ currentChannelCall.on('connection', socket=>{
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
     console.log(`found users`,users);
-    currentChannelCall.to(socket.id).emit('join_room',`${socket.id} joined room with id ${room}`)
+    currentChannelCall.broadcast.to(room ?? socket.id).emit('join_room',userId)
     currentChannelCall.to(room).emit('users', users);
   })
 
@@ -195,8 +203,8 @@ currentChannelCall.on('connection', socket=>{
     if(isOnline )
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
-
   
+
 
   function addUser(userId, socketId,room) {
     connectedUsers[userId] = {socketId,room};
