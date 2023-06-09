@@ -144,7 +144,6 @@ const connectedUsers = {};
 
 currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
-  
  
   socket.on('join_room',async ({userId,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
@@ -159,7 +158,8 @@ currentChannelCall.on('connection', socket=>{
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
     console.log(`found users`,users);
-    currentChannelCall.broadcast.to(room ?? socket.id).emit('join_room',userId)
+    socket.broadcast
+    .to(room).emit('join_room',userId)
     currentChannelCall.to(room).emit('users', users);
   })
 
@@ -203,7 +203,15 @@ currentChannelCall.on('connection', socket=>{
     if(isOnline )
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
-  
+
+  socket.on('call-peers',(data)=>{
+    console.log(`call peers triggered`,data);
+    let isOnline = findUserId(data?.socketId,connectedUsers)
+    console.log(`isOnline ${isOnline}`);
+    let socketId = connectedUsers[isOnline]?.socketId
+    console.log(`socket`,socket);
+    socket.to(data.room).emit('call-peers',data.userId)
+  })
 
 
   function addUser(userId, socketId,room) {
