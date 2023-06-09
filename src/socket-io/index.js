@@ -6,7 +6,7 @@ import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
 import { log } from 'console'
-
+ import { sleep } from '../utils.js'
 export const app = express();
 app.use(
   cors()
@@ -153,14 +153,16 @@ currentChannelCall.on('connection', socket=>{
       return console.log(`already online in a room`)
     }
     // if(!room) return console.error(`ROOM IS empty`)
-   await socket.join(room)
     addUser(userId,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
     console.log(`found users`,users);
-    socket.broadcast
-    .to(room).emit('join_room',userId)
     currentChannelCall.to(room).emit('users', users);
+    await sleep(2000)
+    currentChannelCall.to(room).emit('join_room',userId)
+    await socket.join(room)
+    
+    
   })
 
   socket.on('disconnect',async () => {

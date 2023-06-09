@@ -5,7 +5,19 @@ export function capitalize(string){
   return string && string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-
+export function sleep(ms) {
+  return new Promise(resolve => {
+    let i=0
+  let timer = setInterval(()=>{
+      i++;
+      console.log(`waiting for ${i} seconds...`)
+    },1000)
+     return setTimeout(()=>{
+      clearInterval(timer) 
+      return resolve(true)
+    }, ms)
+  });
+}
 
 
 
