@@ -5,7 +5,6 @@ import cors from 'cors'
 import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
-import { log } from 'console'
  import { sleep } from '../utils.js'
 export const app = express();
 app.use(
@@ -156,11 +155,10 @@ currentChannelCall.on('connection', socket=>{
     addUser(userId,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
+    await socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
-    await sleep(2000)
-    currentChannelCall.to(room).emit('join_room',userId)
-    await socket.join(room)
+    socket.broadcast.to(room).emit('join_room',userId)
     
     
   })
@@ -206,13 +204,12 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
 
-  socket.on('call-peers',(data)=>{
-    console.log(`call peers triggered`,data);
-    let isOnline = findUserId(data?.socketId,connectedUsers)
-    console.log(`isOnline ${isOnline}`);
-    let socketId = connectedUsers[isOnline]?.socketId
-    console.log(`socket`,socket);
-    socket.to(data.room).emit('call-peers',data.userId)
+  socket.on('call-peers',(userId)=>{
+    console.log(`call peers triggered`,userId);
+    let isOnline = connectedUsers[userId]
+    console.log(`isOnline`,isOnline);
+
+    currentChannelCall.to(isOnline?.room).emit('call-peers',userId)
   })
 
 
