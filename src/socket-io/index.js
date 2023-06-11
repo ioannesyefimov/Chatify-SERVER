@@ -158,6 +158,7 @@ currentChannelCall.on('connection', socket=>{
     await socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
+    await sleep(2000)
     socket.broadcast.to(room).emit('join_room',userId)
     
     
@@ -166,6 +167,8 @@ currentChannelCall.on('connection', socket=>{
   socket.on('disconnect',async () => {
     console.log('A user disconnected:', socket.id);
     const userId = findUserId(socket.id,connectedUsers)
+    console.log('USER ID :', userId);
+
     if(!userId) return 
     const room = connectedUsers[userId]?.room
     console.log('A room:', room)
