@@ -146,7 +146,7 @@ currentChannelCall.on('connection', socket=>{
  
   socket.on('join_room',async ({userId,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
-    if(findUserId(socket.id,connectedUsers)) {
+    if(connectedUsers[userId]?.socketId) {
       let users = findUsersInRoom(room,connectedUsers)
       // currentChannelCall.to(room).emit('users', users);
       return console.log(`already online in a room`)
