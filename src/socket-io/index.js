@@ -7,6 +7,7 @@ import fs from 'fs'
 import express from 'express'
  import { sleep } from '../utils.js'
 import { User } from '../MongoDb/index.js'
+import { log } from 'console'
 export const app = express();
 app.use(
   cors()
@@ -160,7 +161,7 @@ currentChannelCall.on('connection', socket=>{
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
 
-    await sleep(2000)
+    await sleep(3000)
     socket.broadcast.to(room).emit('join_room',userId)
     
     
@@ -169,6 +170,7 @@ currentChannelCall.on('connection', socket=>{
   socket.on('disconnect',async () => {
     console.log('A user disconnected:', socket.id);
     const userId = findUserId(socket.id,connectedUsers)
+    console.log('connectedUsers:', connectedUsers);
     console.log('USER ID :', userId);
 
     if(!userId) return 
@@ -209,6 +211,20 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
 
+  socket.on('leave',userId=>{
+    let user = connectedUsers[userId]
+    log(`user:`,user)
+    if(!user) return 
+    let {room=null} = user
+    if(room){
+      socket.leave(room)
+      let users = findUsersInRoom(room,connectedUsers)
+      removeUser(userId)
+      currentChannelCall.to(room).emit('users',users)
+      
+    }
+
+  })
   socket.on('call-peers',(userId)=>{
     console.log(`call peers triggered`,userId);
     let isOnline = connectedUsers[userId]
@@ -252,9 +268,10 @@ currentChannelCall.on('connection', socket=>{
   }
   
 function findUserId(socketId, obj) {
+  console.log(`obj:`,obj);
   if (!obj) return null;
   const userId = Object.keys(obj).find((id) => obj[id].socketId === socketId);
-  return userId || null;
+  return userId ?? null;
 }
   
   function findReceiverId(senderId) {
