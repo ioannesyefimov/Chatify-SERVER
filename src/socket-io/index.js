@@ -6,6 +6,7 @@ import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
  import { sleep } from '../utils.js'
+import { User } from '../MongoDb/index.js'
 export const app = express();
 app.use(
   cors()
@@ -144,7 +145,7 @@ const connectedUsers = {};
 currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
  
-  socket.on('join_room',async ({userId,room})=>{
+  socket.on('join_room',async ({userId,userName,room})=>{
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
     if(connectedUsers[userId]?.socketId) {
       let users = findUsersInRoom(room,connectedUsers)
@@ -152,12 +153,13 @@ currentChannelCall.on('connection', socket=>{
       return console.log(`already online in a room`)
     }
     // if(!room) return console.error(`ROOM IS empty`)
-    addUser(userId,socket.id,room)
+    addUser(userId,userName,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
     await socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
+
     await sleep(2000)
     socket.broadcast.to(room).emit('join_room',userId)
     
@@ -216,8 +218,8 @@ currentChannelCall.on('connection', socket=>{
   })
 
 
-  function addUser(userId, socketId,room) {
-    connectedUsers[userId] = {socketId,room};
+  function addUser(userId,userName, socketId,room) {
+    connectedUsers[userId] = {socketId,room,userName};
     socket.to(socketId).emit('userAdded', userId);
   }
   function findUsersInRoom(room,obj){
@@ -229,7 +231,7 @@ currentChannelCall.on('connection', socket=>{
       console.log(`obj + key:`,obj[userId])
       console.log(`room:`,room)
         if(obj[userId].room===room){
-          let user={user:{userId, socketId:obj[userId].socketId,room}}
+          let user={user:{userId,userName:obj[userId].userName, socketId:obj[userId].socketId,room}}
           return user
         } 
     }).filter(user=>user !== null && user !== undefined)
