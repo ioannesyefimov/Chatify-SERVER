@@ -147,6 +147,8 @@ currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
  
   socket.on('join_room',async ({userId,userName,room})=>{
+    if(!userId  ||!userName || !room) return 
+
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room} `)
     if(connectedUsers[userId]?.socketId) {
       let users = findUsersInRoom(room,connectedUsers)
@@ -184,6 +186,7 @@ currentChannelCall.on('connection', socket=>{
 
   socket.on('offer', ({ userId,fromUserId, from, offer,socketId,fromSocket }) => {
     console.log(`Received offer from ${from} for user ${userId}:`, offer);
+    if(!userId || !fromUserId || !from ||!offer ||!socketId || !fromSocket) return 
     let isOnline = connectedUsers[userId]?.socketId
     console.log(`isOnline`,isOnline)
     if(!isOnline)return 
@@ -192,9 +195,10 @@ currentChannelCall.on('connection', socket=>{
   });
 
   socket.on('answer', ({ userId, answer,socketId,from }) => {
+    if(!userId||!answer||!socketId||!from)
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
     console.log(`userId:${userId}. socketId:${socketId}`);
-    let isOnline = connectedUsers[userId].socketId
+    let isOnline = connectedUsers[userId]?.socketId
     console.log(`isOnline`,isOnline);
     if(!isOnline) return console.log(`NOT ONLINE`)
     currentChannelCall.to(socketId).emit('answer',  { userId,socketId, answer ,from});
