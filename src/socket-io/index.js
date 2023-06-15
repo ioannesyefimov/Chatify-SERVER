@@ -159,10 +159,10 @@ currentChannelCall.on('connection', socket=>{
     addUser(userId,userName,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
-    await socket.join(room)
+     socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
-    await sleep(1000)
+    await sleep(3000)
     socket.broadcast.to(room).emit('join_room',userId)
   })
 
@@ -246,7 +246,7 @@ currentChannelCall.on('connection', socket=>{
     if (userId) {
       let room = connectedUsers[userId]?.room
       delete connectedUsers[userId];
-      currentChannelCall.to(room).emit('userRemoved', userId);
+      // currentChannelCall.to(room).emit('userRemoved', userId);
     }
   }
   
