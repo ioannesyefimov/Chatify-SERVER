@@ -169,6 +169,7 @@ currentChannelCall.on('connection', socket=>{
   socket.on('disconnect',async () => {
     console.log('A user disconnected:', socket.id);
     const userId = findUserId(socket.id,connectedUsers)
+    console.log('connected users :', connectedUsers);
     console.log('USER ID :', userId);
     if(!userId) return 
     const room = connectedUsers[userId]?.room
@@ -210,6 +211,13 @@ currentChannelCall.on('connection', socket=>{
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
 
+  socket.on('call-peer',(data)=>{
+    const {userId=undefined,fromUserId}= data
+    if(!userId || fromUserId) return
+    let user = connectedUsers[userId]?.socketId
+    let fromUser = connectedUsers[fromUserId]
+    currentChannelCall.to(user).emit('call-peer', fromUser?.userId)
+  })
   // socket.on('leave',userId=>{
   //   let user = connectedUsers[userId]
   //   log(`user:`,user)
