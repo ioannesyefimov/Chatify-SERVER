@@ -218,18 +218,10 @@ currentChannelCall.on('connection', socket=>{
     let fromUser = connectedUsers[fromUserId]
     currentChannelCall.to(user).emit('call-peer', fromUser?.userId)
   })
-  // socket.on('leave',userId=>{
-  //   let user = connectedUsers[userId]
-  //   log(`user:`,user)
-  //   if(!user) return 
-  //   let {room=null} = user
-  //   if(room){
-  //     socket.leave(room)
-  //     let users = findUsersInRoom(room,connectedUsers)
-  //     removeUser(userId)
-  //     currentChannelCall.to(room).emit('users',users)
-  //   }
-  // })
+  socket.on('media-track',data=>{
+    console.log(`media-track data:`,data);
+    socket.broadcast.to(data.room).emit('media-track',data)
+  })
 
   function addUser(userId,userName, socketId,room) {
     connectedUsers[userId] = {socketId,room,userName};
