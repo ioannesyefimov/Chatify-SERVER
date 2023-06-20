@@ -176,8 +176,9 @@ currentChannelCall.on('connection', socket=>{
     console.log('A room:', room)
     await socket.leave(room)
     removeUser(socket.id)
-    let users = findUsersInRoom(room,connectedUsers)
-    currentChannelCall.to(room).emit('users', users);
+    // let users = findUsersInRoom(room,connectedUsers)
+    // currentChannelCall.to(room).emit('users', users);
+    currentChannelCall.to(room).emit('user-disconnected',userId);
   });
 
   socket.on('offer', ({ userId,fromUserId, from, offer,socketId,fromSocket }) => {
