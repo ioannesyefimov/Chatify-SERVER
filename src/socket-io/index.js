@@ -150,6 +150,11 @@ currentChannelCall.on('connection', socket=>{
     const {userId, userName,room}=data
     console.log(`data:`,data)
     if(!userId  ||!userName || !room) return 
+    if(connectedUsers[userId]?.room){
+      let users = findUsersInRoom(room,connectedUsers)
+      currentChannelCall.to(socket.id).emit('users',users)
+      return
+    }
 
     if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room}`)
     // if(connectedUsers[userId]?.socketId) {
@@ -176,7 +181,6 @@ currentChannelCall.on('connection', socket=>{
     console.log('A room:', room)
     await socket.leave(room)
     removeUser(socket.id)
-    // let users = findUsersInRoom(room,connectedUsers)
     // currentChannelCall.to(room).emit('users', users);
     currentChannelCall.to(room).emit('user-disconnected',userId);
   });
