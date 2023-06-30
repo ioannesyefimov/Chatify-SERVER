@@ -167,7 +167,7 @@ currentChannelCall.on('connection', socket=>{
      socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
-    await sleep(3000)
+    await sleep(Math.random() *2000)
     socket.broadcast.to(room).emit('join_room',userId)
   })
 
