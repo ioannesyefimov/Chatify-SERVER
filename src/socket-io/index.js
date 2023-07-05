@@ -147,28 +147,28 @@ currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
  
   socket.on('join_room',async (data)=>{
-    const {userId, userName,room}=data
+    const {user,room}=data
     console.log(`data:`,data)
-    if(!userId  ||!userName || !room) return 
-    if(connectedUsers[userId]?.room){
+    if(!user?._id  ||!user?.userName || !room) return 
+    if(connectedUsers[user._id]?.room){
       let users = findUsersInRoom(room,connectedUsers)
       currentChannelCall.to(socket.id).emit('users',users)
       return
     }
 
-    if(!userId || !room) console.error(`error: missing ID OR ROOM ID ${userId}, ${room}`)
+    if(!user?._id || !room) console.error(`error: missing ID OR ROOM ID ${user?._id}, ${room}`)
     // if(connectedUsers[userId]?.socketId) {
     //   let users = findUsersInRoom(room,connectedUsers)
     //   return console.log(`already online in a room`)
     // }
-    addUser(userId,userName,socket.id,room)
+    addUser(user,socket.id,room)
     console.log(`users`,connectedUsers);
     let users = findUsersInRoom(room,connectedUsers)
      socket.join(room)
     console.log(`found users`,users);
     currentChannelCall.to(room).emit('users', users);
     await sleep(Math.random() *2000)
-    socket.broadcast.to(room).emit('join_room',userId)
+    socket.broadcast.to(room).emit('join_room',user._id)
   })
 
   socket.on('disconnect',async () => {
@@ -228,9 +228,9 @@ currentChannelCall.on('connection', socket=>{
     socket.broadcast.to(data.room).emit('media-track',data)
   })
 
-  function addUser(userId,userName, socketId,room) {
-    connectedUsers[userId] = {socketId,room,userName};
-    socket.to(socketId).emit('userAdded', userId);
+  function addUser(user, socketId,room) {
+    connectedUsers[user._id] = {socketId,room,userName:user.userName,picture:user.picture};
+    socket.to(socketId).emit('userAdded', user._id);
   }
   function findUsersInRoom(room,obj){
     if(!obj || !room) return
