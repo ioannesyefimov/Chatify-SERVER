@@ -237,7 +237,7 @@ currentChannelCall.on('connection', socket=>{
     let usersObj=Object.keys(obj).map(userId=>{
       if(!userId) return
         if(obj[userId].room===room){
-          let user={user:{userId,userName:obj[userId].userName, socketId:obj[userId].socketId,room}}
+          let user={user:{userId,userName:obj[userId].userName, socketId:obj[userId].socketId,room,picture:obj[userId.picture]}}
           return user
         } 
     }).filter(user=>user !== null && user !== undefined)
