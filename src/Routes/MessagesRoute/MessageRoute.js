@@ -42,6 +42,8 @@ export const createMessage = async(req)=>{
             newMessage.channelAt = isCreated
             if(date) {
                 newMessage.createdAt = createDate(date)
+            }else {
+                newMessage.createdAt= createDate()
             }
             await newMessage.save(session)
             isCreated?.messages.push(newMessage)
