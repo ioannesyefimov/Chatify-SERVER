@@ -149,10 +149,11 @@ currentChannelCall.on('connection', socket=>{
   socket.on('join_room',async (data)=>{
     const {user,room}=data
     console.log(`data:`,data)
+    
     if(!user?._id  ||!user?.userName || !room) return 
     if(connectedUsers[user._id]?.room ===room){
-      let users = findUsersInRoom(room,connectedUsers)
-      currentChannelCall.to(socket.id).emit('users',users)
+      // let users = findUsersInRoom(room,connectedUsers)
+      // currentChannelCall.to(socket.id).emit('users',users)
       return
     }
 
@@ -168,7 +169,6 @@ currentChannelCall.on('connection', socket=>{
     console.log(`connectedUsers`,connectedUsers);
     console.log(`found users`,users);
     currentChannelCall.to(socket.id).emit('users', users);
-    await sleep(Math.random() *2000)
     socket.broadcast.to(room).emit('join_room',{userId:user._id,socketId:socket.id,userName:user.userName})
   })
 
