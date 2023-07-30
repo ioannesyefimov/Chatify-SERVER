@@ -152,8 +152,8 @@ currentChannelCall.on('connection', socket=>{
     
     if(!user?._id  ||!user?.userName || !room) return 
     if(connectedUsers[user._id]?.room ===room){
-      // let users = findUsersInRoom(room,connectedUsers)
-      // currentChannelCall.to(socket.id).emit('users',users)
+      let users = findUsersInRoom(room,connectedUsers)
+      currentChannelCall.to(socket.id).emit('users',users)
       return
     }
 
@@ -168,8 +168,11 @@ currentChannelCall.on('connection', socket=>{
      socket.join(room)
     console.log(`connectedUsers`,connectedUsers);
     console.log(`found users`,users);
-    currentChannelCall.to(socket.id).emit('users', users);
-    socket.broadcast.to(room).emit('join_room',{userId:user._id,socketId:socket.id,userName:user.userName})
+    // currentChannelCall.to(socket.id).emit('use rs', users);
+    currentChannelCall.to(room).emit('users', users);
+    sleep(2000).then(()=>{
+      socket.broadcast.to(room).emit('join_room',user._id)
+    })
   })
 
   socket.on('disconnect',async () => {

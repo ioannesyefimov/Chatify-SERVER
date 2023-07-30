@@ -23,16 +23,17 @@ export const createMessage = async(req)=>{
         if(!LoggedUser ){
             throwErr({name:Errors.NOT_SIGNED_UP,code:404 })
         } 
-        let isCreated = await Channel.findOne({_id:channelId});
-        if(!isCreated) {
-            throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
-        }
-        isCreated = await Channel.findOne({_id:channelId,"members.member": LoggedUser._id});
+        // let isCreated = await Channel.findOne({_id:channelId});
+        // if(!isCreated) {
+        //     throwErr({name: Errors.CHANNEL_NOT_FOUND, code:404})
+        // }
+        // isCreated = await Channel.findOne({_id:channelId,"members.member": LoggedUser._id});
+        let isCreated = await Channel.findOne({_id:channelId,"members.member": LoggedUser._id});
         if(!isCreated){
-            throwErr({name: Errors.NOT_A_MEMBER, code:404})
+            throwErr({name: Errors.NOT_A_MEMBER, code:404,isCreated})
         }
         let response 
-         await conn.transaction(async()=>{
+        await conn.transaction(async()=>{
             
             const newMessage =  new Message({
                 message
@@ -51,16 +52,16 @@ export const createMessage = async(req)=>{
             console.log(`newMessage:`, newMessage)
             // isCreatedawait ?.save({session})
         // let PopulatedUser = await populateCollection(LoggedUser, "User");
-        let populatedMessages = await populateCollection(isCreated,"Channel");
-        console.log(`channels:`, populatedMessages)
-        // console.log(`user:`, PopulatedUser)
+            let populatedMessages = await populateCollection(isCreated,"Channel");
+            console.log(`channels:`, populatedMessages)
+            // console.log(`user:`, PopulatedUser)
 
 
-        response= {success:true, data: {message:newMessage, channel: populatedMessages}}
+            response= {success:true, data: {message:newMessage, channel: populatedMessages}}
 
-        await session.endSession()
+            await session.endSession()
 
-    })
+        })
 
     return response ?? throwErr({name:'Transaction failed', code:500})
 } catch (error) {
