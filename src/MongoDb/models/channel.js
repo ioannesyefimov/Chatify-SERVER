@@ -35,8 +35,8 @@ const ChannelSchema = new mongoose.Schema({
                 }
             ],
      },
-        
-],
+    ],
+    isInCall:Boolean,
 
 }, {versionKey: false })
 

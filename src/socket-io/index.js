@@ -5,8 +5,8 @@ import cors from 'cors'
 import {Server} from 'socket.io'
 import fs from 'fs'
 import express from 'express'
- import { sleep } from '../utils.js'
-import { User } from '../MongoDb/index.js'
+ import { populateCollection, sleep } from '../utils.js'
+import { Channel, User } from '../MongoDb/index.js'
 import { log } from 'console'
 export const app = express();
 app.use(
@@ -143,17 +143,23 @@ currentChannel.on('connection', (socket)=>{
 
 const connectedUsers = {};
 
+
+
 currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
  
   socket.on('join_room',async (data)=>{
     const {user,room}=data
     console.log(`data:`,data)
-    
+    const channel = await Channel.findOne({_id:room})
+    console.log(`channel: `,channel)
+    checkIsInCall(room)
+   
     if(!user?._id  ||!user?.userName || !room) return 
     if(connectedUsers[user._id]?.room ===room){
       let users = findUsersInRoom(room,connectedUsers)
-      currentChannelCall.to(socket.id).emit('users',users)
+      console.log(`already in a room ${user._id} in ${room}`);
+      // currentChannelCall.to(socket.id).emit('users',users)
       return
     }
 
@@ -168,10 +174,10 @@ currentChannelCall.on('connection', socket=>{
      socket.join(room)
     console.log(`connectedUsers`,connectedUsers);
     console.log(`found users`,users);
-    // currentChannelCall.to(socket.id).emit('use rs', users);
-    currentChannelCall.to(room).emit('users', users);
+    currentChannelCall.to(socket.id).emit('users', users);
+    // currentChannelCall.to(room).emit('users', users);
     sleep(2000).then(()=>{
-      socket.broadcast.to(room).emit('join_room',user._id)
+      socket.broadcast.to(room).emit('join_room',{userId:user?._id,socketId:socket.id,userName:user?.userName})
     })
   })
 
@@ -179,13 +185,12 @@ currentChannelCall.on('connection', socket=>{
     console.log('A user disconnected:', socket.id);
     const userId = findUserId(socket.id,connectedUsers)
     console.log('connected users :', connectedUsers);
-    console.log('USER ID :', userId);
     if(!userId) return 
     const room = connectedUsers[userId]?.room
     console.log('A room:', room)
     await socket.leave(room)
     removeUser(userId)
-    // currentChannelCall.to(room).emit('users', users);
+  // currentChannelCall.to(room).emit('users', users);
     currentChannelCall.to(room).emit('user-disconnected',userId);
   });
   socket.on('joinCallUser',(userId)=>{
@@ -204,9 +209,7 @@ currentChannelCall.on('connection', socket=>{
   socket.on('answer', ({ userId, answer,socketId,from }) => {
     if(!userId||!answer||!socketId||!from)
     console.log(`Received answer from ${socket.id} for user ${socketId}:`, answer);
-    console.log(`userId:${userId}. socketId:${socketId}`);
     let isOnline = connectedUsers[userId]?.socketId
-    console.log(`isOnline`,isOnline);
     if(!isOnline) return console.log(`NOT ONLINE`)
     currentChannelCall.to(socketId).emit('answer',  { userId,socketId, answer ,from});
   });
@@ -215,10 +218,6 @@ currentChannelCall.on('connection', socket=>{
     if(!userId || !socketId || !candidate) return
     console.log(`Received ICE candidate from ${socket.id} for user ${socketId}:`, candidate);
     let isOnline = connectedUsers[userId]?.socketId
-    console.log(`icecandidate userId:`,userId);
-    console.log(`isOnline`,isOnline);
-    console.log(`icecandidate socketId`,socketId);
-    if(isOnline )
     currentChannelCall.to(socketId).emit('iceCandidate', { userId,socketId:socket.id, candidate });
   });
 
@@ -229,11 +228,6 @@ currentChannelCall.on('connection', socket=>{
     let fromUser = connectedUsers[fromUserId]
     currentChannelCall.to(user).emit('call-peer', fromUser?.userId)
   })
-  socket.on('media-track',data=>{
-    console.log(`media-track data:`,data);
-    socket.broadcast.to(data.room).emit('media-track',data)
-  })
-
   function addUser(user, socketId,room) {
     connectedUsers[user._id] = {socketId,room,userName:user.userName,picture:user.picture};
     socket.to(socketId).emit('userAdded', user._id);
@@ -241,8 +235,6 @@ currentChannelCall.on('connection', socket=>{
   function findUsersInRoom(room,obj,userID){
     if(!obj || !room) return
     let usersObj=Object.keys(obj).map(userId=>{
-      console.log(`room:`,room);
-      console.log(`user room:`,obj[userId].room);
       if(!userId || obj[userId].room !== room) return
       // if(userId===userID ) return
         if(obj[userId].room===room){
@@ -250,7 +242,6 @@ currentChannelCall.on('connection', socket=>{
           return user
         } 
     }).filter(userInRoom=>userInRoom !== null && userInRoom !== undefined)
-    console.log(`usersObj`,usersObj);
     return usersObj
   }
   
@@ -279,5 +270,29 @@ currentChannelCall.on('connection', socket=>{
   }
   function findReceiverId(senderId) {
     return Object.keys(connectedUsers).find((userId) => userId.socketId !== senderId);
+  }
+  async function checkIsInCall(room){
+    let channel = await Channel.findOne({_id:room})
+    if(!channel) return channel
+    let isEmptyRoom = findUsersInRoom(room,connectedUsers)
+    if(!isEmptyRoom?.length) {
+      channel.isInCall= false
+      await channel.save()
+    }else {
+      channel.isInCall = true
+      await channel.save()
+    }
+    console.log(`isEmptyRoom`,isEmptyRoom);
+  //   if(!channel) return 
+  //   let populated = await populateCollection(channel,'channel')
+  //   if(populated.isInCall){
+  
+  //   }else {
+  //     channel.isInCall =  true
+  //     await channel.save()
+  //   }
+  //   console.log(`populated isInCall: `,populated?.isInCall);
+  //   console.log(`populated: `,populated)
+  
   }
 });
