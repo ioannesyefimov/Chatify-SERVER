@@ -95,7 +95,8 @@ userIo.on('connection',(socket)=>{
 currentChannel.on('connection', (socket)=>{
     console.log(`User connected to currentChannel socket by  ${socket.id}`)
     socket.on('join_channel',async data=>{
-        socket.join(data.room)
+      socket.join(data.room)
+      checkIsInCall(data.room)
         console.log(`User "${data?.user?.email}: JOINED channel with id:`, data.room);
         socket.emit('join_channel',{data:{room:data.room}})
         console.log(`ONLINE_USERS:`,onlineUsers)
@@ -135,8 +136,37 @@ currentChannel.on('connection', (socket)=>{
 
 
     socket.on('disconnect',()=>{ 
-        console.log(`Client ${socket.id} disconnected from currentChannel`);
+      console.log(`Client ${socket.id} disconnected from currentChannel`);
     })
+
+
+     function findUsersInRoom(room,obj,userID){
+        if(!obj || !room) return
+        let usersObj=Object.keys(obj).map(userId=>{
+          if(!userId || obj[userId].room !== room) return
+          // if(userId===userID ) return
+            if(obj[userId].room===room){
+              let user={user:{userId,userName:obj[userId].userName, socketId:obj[userId].socketId,room,picture:obj[userId.picture]}}
+              return user
+            } 
+        }).filter(userInRoom=>userInRoom !== null && userInRoom !== undefined)
+        return usersObj
+     }
+
+    async function checkIsInCall(room){
+      let channel = await Channel.findOne({_id:room})
+      if(!channel) return channel
+      let isEmptyRoom = findUsersInRoom(room,connectedUsers)
+      if(!isEmptyRoom?.length) {
+        channel.isInCall= false
+        await channel.save()
+      }else {
+        channel.isInCall = true
+        await channel.save()
+      }
+      console.log(`isEmptyRoom`,isEmptyRoom);
+      currentChannel.emit('isInCall',channel.isInCall)
+    }
 })
 
 
@@ -147,14 +177,12 @@ const connectedUsers = {};
 
 currentChannelCall.on('connection', socket=>{
   console.log('A user connected:', socket.id);
- 
   socket.on('join_room',async (data)=>{
     const {user,room}=data
     console.log(`data:`,data)
     const channel = await Channel.findOne({_id:room})
     console.log(`channel: `,channel)
     checkIsInCall(room)
-   
     if(!user?._id  ||!user?.userName || !room) return 
     if(connectedUsers[user._id]?.room ===room){
       let users = findUsersInRoom(room,connectedUsers)
@@ -190,6 +218,8 @@ currentChannelCall.on('connection', socket=>{
     console.log('A room:', room)
     await socket.leave(room)
     removeUser(userId)
+  checkIsInCall(room)
+
   // currentChannelCall.to(room).emit('users', users);
     currentChannelCall.to(room).emit('user-disconnected',userId);
   });
@@ -232,7 +262,8 @@ currentChannelCall.on('connection', socket=>{
     connectedUsers[user._id] = {socketId,room,userName:user.userName,picture:user.picture};
     socket.to(socketId).emit('userAdded', user._id);
   }
-  function findUsersInRoom(room,obj,userID){
+  
+   function findUsersInRoom(room,obj,userID){
     if(!obj || !room) return
     let usersObj=Object.keys(obj).map(userId=>{
       if(!userId || obj[userId].room !== room) return
@@ -244,7 +275,6 @@ currentChannelCall.on('connection', socket=>{
     }).filter(userInRoom=>userInRoom !== null && userInRoom !== undefined)
     return usersObj
   }
-  
   // function removeUser(socketId) {
   //   const userId = findUserId(socketId,connectedUsers);
   //   console.log(`remove func: USERID:`,userId);
@@ -278,21 +308,12 @@ currentChannelCall.on('connection', socket=>{
     if(!isEmptyRoom?.length) {
       channel.isInCall= false
       await channel.save()
-    }else {
+    } else {
       channel.isInCall = true
       await channel.save()
     }
+    currentChannel.to(channel._id).emit('isInCall',channel.isInCall)
     console.log(`isEmptyRoom`,isEmptyRoom);
-  //   if(!channel) return 
-  //   let populated = await populateCollection(channel,'channel')
-  //   if(populated.isInCall){
-  
-  //   }else {
-  //     channel.isInCall =  true
-  //     await channel.save()
-  //   }
-  //   console.log(`populated isInCall: `,populated?.isInCall);
-  //   console.log(`populated: `,populated)
   
   }
 });
