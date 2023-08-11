@@ -200,8 +200,31 @@ export const getMessages = async(req) =>{
     }
 }
 
+export  async function getMessagesInChannel(req){
 
+    const {channel_id}=req.query
+    console.log(`req.query:`,req.query);
+    try {
+        const channel = await Channel.findOne({_id:channel_id})
+        if(!channel) return throwErr({name:Errors.CHANNEL_NOT_FOUND,code:404})
+        const populatedChannel = await populateCollection(channel,'channel')
+        console.log(`populatedMessages:`,populatedChannel);
+        if(!populatedChannel) throwErr({name:`error with populating: ${populatedChannel}`})
+        return {success:true,data:{messages:populatedChannel.messages}}
+    } catch (error) {
+        return checkErrWithoutRes(error)
+    }
+}
 
+router.route('/getMessages').get(async(req,res)=>{
+    let response = await getMessagesInChannel(req,res);
+    console.log(`RESPONSE GET MESSAGES: `,response)
+    if(response?.success){
+        res.status(200).send(response)
+    }else {
+        res.status(500).send(response)
+    }
+})
 
 router.route('/').get(async(req,res)=>{
     let response = await getMessages(req);

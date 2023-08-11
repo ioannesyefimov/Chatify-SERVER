@@ -123,6 +123,7 @@ currentChannel.on('connection', (socket)=>{
           return     
         }
         currentChannel.to(data.room).emit('receive_message',{ data:{from:data.from,messages:response.data.channel.messages,message:response.data.message}})
+        // socket.broadcast.to(data.room).emit('receive_message',{ data:{from:data.from,messages:response.data.channel.messages,message:response.data.message}})
     })
     socket.on('delete_message',async(data)=>{
         let sockets = await currentChannel.in(data.channel_id).fetchSockets()
