@@ -166,7 +166,7 @@ currentChannel.on('connection', (socket)=>{
         await channel.save()
       }
       console.log(`isEmptyRoom`,isEmptyRoom);
-      currentChannel.emit('isInCall',channel.isInCall)
+      currentChannel.to(room).emit('isInCall',channel.isInCall)
     }
 })
 

@@ -202,9 +202,13 @@ export const getMessages = async(req) =>{
 
 export  async function getMessagesInChannel(req){
 
-    const {channel_id}=req.query
+    const {channel_id,userEmail}=req.query
+
+
     console.log(`req.query:`,req.query);
     try {
+        const isLogged=await User.findOne({email:userEmail})
+        if(!isLogged) throwErr({name:Errors.USER_NOT_FOUND,code:404})
         const channel = await Channel.findOne({_id:channel_id})
         if(!channel) return throwErr({name:Errors.CHANNEL_NOT_FOUND,code:404})
         const populatedChannel = await populateCollection(channel,'channel')
