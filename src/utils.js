@@ -41,7 +41,7 @@ if (mm < 10) mm = '0' + mm;
 
 const formattedToday =  yyyy + '/' + mm + '/' + dd;
   DATE.day = formattedToday
-  DATE.time = today.toLocaleTimeString()
+  DATE.time = today.toLocaleTimeString("en-GB")
   DATE.Date = today.toDateString()
   DATE.date =()=>today
   return DATE

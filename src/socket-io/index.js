@@ -119,10 +119,11 @@ currentChannel.on('connection', (socket)=>{
         }})        
         console.log(`RESPONSE:`, response);
         if(!response?.success){
-          currentChannel.to(data.room).emit('receive_message',response)
+          socket.broadcast.to(data.room).emit('receive_message',response)
           return     
         }
-        currentChannel.to(data.room).emit('receive_message',{ data:{from:data.from,messages:response.data.channel.messages,message:response.data.message}})
+        console.log(`response:`,response)
+        socket.broadcast.to(data?.room).emit('receive_message',{ data:{from:data.from,messages:response?.data?.channel?.messages,message:response?.data?.message}})
         // socket.broadcast.to(data.room).emit('receive_message',{ data:{from:data.from,messages:response.data.channel.messages,message:response.data.message}})
     })
     socket.on('delete_message',async(data)=>{
@@ -131,7 +132,7 @@ currentChannel.on('connection', (socket)=>{
         console.log(`DATA:`, data);
             let response = await deleteMessage({query:{message_id:data?.message_id,userEmail:data?.userEmail,channel_id:data?.channel_id}});
             console.log(`RESPONSE`, response);
-          currentChannel.to(data.channel_id).emit('delete_message',response)
+          socket.broadcast.to(data.channel_id).emit('delete_message',response)
             
     })
 
@@ -313,7 +314,7 @@ currentChannelCall.on('connection', socket=>{
       channel.isInCall = true
       await channel.save()
     }
-    currentChannel.to(channel._id).emit('isInCall',channel.isInCall)
+    socket.broadcast.to(channel._id).emit('isInCall',channel.isInCall)
     console.log(`isEmptyRoom`,isEmptyRoom);
   
   }
